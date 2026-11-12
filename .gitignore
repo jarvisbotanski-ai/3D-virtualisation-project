@@ -1,0 +1,12 @@
+# Whitelist: only what the Vite site needs (npm install && npm run dev / build).
+# Everything else (source .skp/.glb, renders, reference/, tools/, verify/, vendor/,
+# notes, recordings, node_modules/, dist/) stays local.
+/*
+!/.gitignore
+!/index.html
+!/package.json
+!/package-lock.json
+!/vite.config.js
+!/README.md
+!/src/
+!/public/

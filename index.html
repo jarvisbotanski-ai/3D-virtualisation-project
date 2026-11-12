@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio name — interior design, Vilnius</title>
+<meta name="description" content="Interior design in Vilnius. Walk through your apartment in 3D before the renovation starts.">
+<link rel="icon" href="/brand/mark.svg" type="image/svg+xml">
+<link rel="preload" as="image" href="/posters/plan.png" media="(min-width: 861px)">
+<script>
+  // Set the mobile hero mode before the body parses, so the hidden desktop posters
+  // (mid.png is 600 kB) are never fetched on phones. hero.js confirms or corrects it.
+  if (matchMedia('(max-width: 860px)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+    document.documentElement.dataset.heroMode = 'mobile';
+</script>
+<script>document.documentElement.classList.replace('no-js','js');</script>
+<script type="module" src="/src/main.js"></script>
+</head>
+<body>
+
+<!-- ===================== HERO (full-bleed: canvas = whole viewport) ===================== -->
+<div class="hero" id="hero">
+  <div class="sticky">
+    <!-- 3D stage spans the viewport; the model is fitted into .frame (right of the copy) -->
+    <div class="stage3d" id="stage3d">
+      <div class="frame" id="heroFrame">
+        <!-- poster first, canvas crossfades in when the GLB is ready -->
+        <img class="poster poster-plan" src="/posters/plan.png" alt="" aria-hidden="true" width="1600" height="1000" loading="lazy">
+        <img class="poster poster-mid" src="/posters/mid.png" alt="Apartment interior, Vilnius — oak herringbone floor, dining table, kitchen" width="1600" height="1000" loading="lazy">
+      </div>
+      <div class="canvas-host" id="canvasHost"></div>
+      <svg class="dims" id="dims" aria-hidden="true"></svg>
+    </div>
+    <div class="veil" aria-hidden="true"></div>
+
+    <div class="copy">
+      <div class="st on" data-st="0">
+        <div class="kicker">Interior design · Vilnius</div>
+        <h1>Interiors you can walk through before they exist.</h1>
+        <p>Every project starts as a plan. <span class="scroll-only">Scroll to see this one become a home.</span></p>
+        <div class="meta num"><span><b>5.92 × 13.54</b> m</span><span><b>2.75</b> m ceiling</span><span><b>1-bed</b> apartment</span></div>
+        <a class="btn static-cta" href="#contact">Let's talk about your place <span class="arr">→</span></a>
+      </div>
+      <div class="st" data-st="1">
+        <div class="kicker">01 · Space</div>
+        <h2>First, the shape of the rooms.</h2>
+        <p>Walls, light, how you move from the door to the kitchen to the bed. No colours yet — just whether the space works.</p>
+      </div>
+      <div class="st" data-st="2">
+        <div class="kicker">02 · Materials</div>
+        <h2>Then it becomes real.</h2>
+        <p>Oak herringbone, lacquered fronts, linen curtains. You see the finished room before anyone orders a single tile.</p>
+      </div>
+      <div class="st" data-st="3">
+        <div class="kicker">03 · Your turn</div>
+        <h2>Your place, the same way.</h2>
+        <p>This one started as the plan you just saw. Tell me about yours.</p>
+        <a class="btn" href="#contact">Let's talk about your place <span class="arr">→</span></a>
+      </div>
+    </div>
+
+    <div class="dots" aria-label="Stations">
+      <button type="button" class="on" data-go="0" aria-label="Plan"></button>
+      <button type="button" data-go="1" aria-label="Space"></button>
+      <button type="button" data-go="2" aria-label="Materials"></button>
+      <button type="button" data-go="3" aria-label="Your place"></button>
+    </div>
+    <div class="hint on">Scroll ↓</div>
+  </div>
+</div>
+
+<main id="page">
+
+<!-- ===================== STATEMENT ===================== -->
+<section class="sec stmt" id="approach">
+  <div class="rail band">
+    <p class="idx">00 — Approach</p>
+    <div class="band-body">
+      <p class="lead" data-reveal>Drawings, materials and light are decided in the model, at full size. What you approve on the screen is what gets built — no surprises on site, no renders that flatter a room you have never stood in.</p>
+      <div class="facts num" data-reveal>
+        <div><b>2</b><span>weeks to first walkthrough</span></div>
+        <div><b>1 : 1</b><span>modelled to the millimetre</span></div>
+        <div><b>0</b><span>guesswork left for the builder</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WORK ===================== -->
+<section class="sec" id="work">
+  <div class="rail band">
+    <p class="idx">01 — Work</p>
+    <div class="band-body">
+      <div class="sec-head" data-reveal>
+        <h2>Selected work</h2>
+        <p>Each project is a real apartment or house, modelled to the millimetre. Open one to walk through it.</p>
+      </div>
+      <!-- rendered from src/projects.js -->
+      <div class="grid" id="workGrid" data-reveal></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PROCESS ===================== -->
+<section class="sec" id="process">
+  <div class="rail band">
+    <p class="idx">02 — Process</p>
+    <div class="band-body">
+      <div class="sec-head" data-reveal>
+        <h2>How it works</h2>
+        <p>Three steps. You see the result at every one of them, in 3D, before anything is built.</p>
+      </div>
+      <div class="process">
+        <div class="step" data-reveal>
+          <div class="n num">01</div>
+          <h3>Measure &amp; plan</h3>
+          <p>Site visit, measurements, your brief. You get a plan you can already walk through.</p>
+          <div class="step-meta num">Week 1</div>
+        </div>
+        <div class="step" data-reveal>
+          <div class="n num">02</div>
+          <h3>Design in 3D</h3>
+          <p>Layout, materials, light. Reviewed together, changed until it feels right.</p>
+          <div class="step-meta num">Weeks 2–5</div>
+        </div>
+        <div class="step" data-reveal>
+          <div class="n num">03</div>
+          <h3>Build-ready</h3>
+          <p>Drawings, specifications, supplier list. Everything your builder needs.</p>
+          <div class="step-meta num">Week 6</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CONTACT ===================== -->
+<section class="sec cta" id="contact">
+  <div class="rail band">
+    <p class="idx">03 — Contact</p>
+    <div class="band-body cta-body">
+      <div data-reveal>
+        <h2>Let's talk about your place.</h2>
+        <p>Tell me what you have and what you'd like it to become. I'll reply within two working days.</p>
+        <div class="meta"><span><a class="link draft" href="mailto:hello@placeholder.lt"><b>hello@placeholder.lt</b></a></span><span><b class="draft">+370 ···</b></span></div>
+      </div>
+      <form class="card" data-reveal onsubmit="return false">
+        <div class="field"><label for="f-name">Name</label><input id="f-name" placeholder="Your name" autocomplete="name"></div>
+        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" placeholder="you@email.com" autocomplete="email"></div>
+        <div class="field"><label for="f-about">About the place</label><textarea id="f-about" rows="3" placeholder="Apartment, 64 m², Vilnius. Full renovation…"></textarea></div>
+        <button class="btn" type="submit">Send <span class="arr">→</span></button>
+      </form>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===================== SIGNATURE (the logo, revealed last) ===================== -->
+<footer class="sign" id="sign">
+  <div class="rail">
+    <div class="sign-lockup" id="signLockup" aria-label="Interiors">
+      <span class="sign-mark" aria-hidden="true"></span>
+      <span class="sign-word" aria-hidden="true"></span>
+    </div>
+    <div class="sign-meta">
+      <span>© 2026 <span class="draft">Studio name</span></span>
+      <span>Vilnius, Lithuania</span>
+      <span><a class="link draft" href="mailto:hello@placeholder.lt">hello@placeholder.lt</a></span>
+    </div>
+  </div>
+</footer>
+
+<a class="jump" id="jump" href="#contact">Let's talk <span class="arr">→</span></a>
+
+<div class="tweaks" id="tweaks" hidden>
+  <label><input type="checkbox" id="tw-dither" checked> dither materialisation</label>
+  <label><input type="checkbox" id="tw-grid"> show rails</label>
+</div>
+
+<noscript><style>[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}</style></noscript>
+</body>
+</html>

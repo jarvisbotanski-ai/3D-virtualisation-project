@@ -1,0 +1,21 @@
+{
+  "name": "interior-portfolio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "assets": "node tools/build-assets.mjs",
+    "assets:inspect": "gltf-transform inspect public/models/citify_butas.opt.glb"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
+    "vite": "^8.3.6"
+  }
+}
