@@ -211,9 +211,11 @@ section.sec > .rail > .band{padding-top:28px}
    overall dimensions) and a title block on the right. Sheets are separated by real
    space, never glued by a shared border — adding projects adds sheets, not cramming. */
 .sheets{display:grid;gap:clamp(48px,6vw,96px)}
-.sheet{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(300px,1fr);background:var(--card);
+.sheet{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(300px,1fr);background:var(--card);overflow:hidden;
   box-shadow:0 0 0 1px var(--border);color:inherit}
-.sheet-view{aspect-ratio:16/10;background:#eceae6 center/cover no-repeat;min-height:100%}
+/* width pinned to the column: with only aspect-ratio + min-height:100% a tall side
+   column made the view compute a WIDER box and slide under the plan */
+.sheet-view{width:100%;aspect-ratio:16/10;background:#eceae6 center/cover no-repeat;min-height:100%}
 .sheet-side{display:flex;flex-direction:column;border-left:1px solid var(--border);min-width:0}
 .sheet-plan{margin:0;flex:1;display:grid;place-items:center;padding:clamp(44px,4vw,64px) clamp(28px,3vw,48px) clamp(28px,3vw,40px) clamp(40px,3.6vw,60px)}
 .plan{position:relative;width:100%;background-repeat:no-repeat}

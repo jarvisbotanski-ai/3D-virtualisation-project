@@ -24,8 +24,12 @@ export const PROJECTS = [
   {
     title: '2-room apartment, Vilnius',
     place: 'Vilnius', year: 2026, area: 52,
+    size: [9.33, 7.42],                   // model bounds, same source as project 1
     view: '/img/05-migdol.png',
     viewStyle: 'background-color:#f7f7f7;background-size:contain',   // image is drawn on #f7f7f7
+    plan: '/img/06-migdol-plan.png',      // rendered from models/migdol_citify.glb with reference/harness/shots.html?shot=blueprint
+    planPx: [941, 759],
+    planBox: [2.55, 3.03, 97.45, 96.71],
     model: '/models/migdol_citify.opt.glb',
   },
 ];
