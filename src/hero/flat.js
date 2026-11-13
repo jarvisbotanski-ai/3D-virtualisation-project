@@ -502,10 +502,20 @@ export function setupFlat(el, { onFail } = {}) {
     heroTop = r.top + scrollY;
     heroRange = Math.max(1, r.height - vh);
     heroBottom = heroTop + r.height;
-    // the plan starts under the intro copy and the finished flat ends above the CTA
-    const stTop = el.sticky.getBoundingClientRect().top;
-    introTop = Math.min(vh * 0.42, el.intro.getBoundingClientRect().bottom - stTop + 44);
-    outroBottom = Math.min(vh * 0.45, el.outro.offsetHeight + 40);
+    // the plan starts under the intro copy and the finished flat ends above the CTA.
+    // Layout box only (offsetTop/offsetHeight ignore `translate`): the intro is shifted up
+    // to -24px once you are past it, and `resize` also fires down there (iOS toolbar) —
+    // measuring the shifted box put the plan 24px higher, over the copy, on the way back.
+    // .copy is inset:0 in the sticky box, so the offsets are already sticky-relative.
+    // No cap: the old min(vh * 0.42, …) let the plan climb onto the copy on any screen
+    // where the copy is taller than 42 % of the viewport (short phones, toolbar shown,
+    // in-app browsers). Short screens get a compact copy in CSS instead (styles.css,
+    // max-height queries), so the plan always starts BELOW the text and keeps its size.
+    // 44px = room for the top dimension line + its label above the plan.
+    introTop = el.intro.offsetTop + el.intro.offsetHeight + 44;
+    // outro is bottom-anchored: everything from its top edge down is off limits.
+    // It is display:none on phones (no closing CTA there) — then keep a plain margin.
+    outroBottom = el.outro.offsetParent ? vh - el.outro.offsetTop + 20 : 56;
     dimsKey = '';
     dirty = true;
   }

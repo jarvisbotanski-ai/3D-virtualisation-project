@@ -83,6 +83,8 @@ nav a.link{color:var(--muted);transition:color var(--dur-micro)}
 
 /* floating CTA: the only chrome that overlays the page, and only after the hero.
    Replaces the header button — same job, no bar. */
+/* desktop only now: phones hide it (below). It hides over the work sheets and the
+   process — see main.js — so it never sits on top of text */
 .jump{position:fixed;right:clamp(16px,2.4vw,28px);bottom:clamp(16px,2.4vw,28px);z-index:25;
   display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:999px;
   background:var(--ink);color:#fff;font-size:14px;white-space:nowrap;
@@ -130,9 +132,13 @@ nav a.link{color:var(--muted);transition:color var(--dur-micro)}
 
 /* copy block: a layer over the scene, left column (~38 % of the viewport) */
 .copy{position:absolute;inset:0 auto 0 0;width:var(--copy-col);z-index:2;pointer-events:none}
+/* Sequential, not cross-fade: all four stations sit in the same spot, so a cross-fade
+   showed two headlines on top of each other mid-switch (and on fast scroll, three).
+   The leaving copy is gone in .18s; the arriving copy waits .2s before it starts. */
 .copy .st{position:absolute;left:var(--hero-pad);right:40px;top:50%;transform:translateY(calc(-50% + 12px));opacity:0;
-  transition:opacity .6s var(--ease-out-expo),transform .9s var(--ease-out-expo)}
-.copy .st.on{opacity:1;transform:translateY(-50%);pointer-events:auto}
+  transition:opacity .18s linear,transform .3s var(--ease-out-expo)}
+.copy .st.on{opacity:1;transform:translateY(-50%);pointer-events:auto;
+  transition:opacity .6s var(--ease-out-expo) .2s,transform .9s var(--ease-out-expo) .2s}
 .kicker{font-size:12px;color:var(--subtle);letter-spacing:.02em;text-transform:uppercase;font-weight:500;margin-bottom:14px}
 .copy h1{font-size:clamp(36px,3.9vw,64px);line-height:1.06;letter-spacing:-.06em;margin-bottom:20px}
 /* Stations 2–3 sit a clear step below the headline: same scaling behaviour as h1
@@ -196,63 +202,120 @@ section.sec + section.sec{padding-top:0}
 section.sec > .rail > .band::before{content:"";position:absolute;left:var(--hero-pad);right:var(--hero-pad);top:0;height:1px;background:var(--border)}
 section.sec > .rail > .band{padding-top:28px}
 
-/* 00 — approach: one long statement, then three numbers. The statement runs the
-   FULL width of the content column — it is the page's thesis, not a narrow
-   paragraph; balanced wrapping keeps the last line from going orphan. */
-.stmt .lead{font-size:clamp(26px,3.1vw,44px);line-height:1.18;letter-spacing:-.05em;margin:0 0 calc(var(--gap) * 1.3);
+/* 00 — approach: one statement, nothing under it. It runs the full content width:
+   it is the page's thesis, not a narrow paragraph. */
+.stmt .lead{font-size:clamp(26px,3.1vw,44px);line-height:1.18;letter-spacing:-.05em;margin:0;
   max-width:none;text-wrap:balance}
-.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);border-top:1px solid var(--border);padding-top:26px}
-.facts div{display:flex;flex-direction:column;gap:8px}
-.facts b{font-size:clamp(32px,3.6vw,52px);font-weight:500;letter-spacing:-.05em;line-height:1}
-.facts span{font-size:12px;text-transform:uppercase;letter-spacing:.02em;color:var(--subtle);max-width:22ch}
 
-/* section headings carry the same weight as the hero line — one type scale for the
-   whole page, not a loud hero and a quiet brochure. Supporting copy runs wide too;
-   it is capped only where a line would stop being readable. */
-.sec-head{display:grid;gap:16px;margin-bottom:var(--gap)}
+/* section headings carry the same weight as the hero line — one type scale */
+.sec-head{display:grid;gap:16px;margin-bottom:calc(var(--gap) * 1.2)}
 .sec-head h2{font-size:clamp(32px,3.9vw,56px);line-height:1.06;letter-spacing:-.06em;max-width:none}
-.sec-head p{font-size:clamp(17px,1.4vw,20px);line-height:1.42;letter-spacing:-.03em;color:var(--muted);max-width:78ch;margin:0}
+.sec-head p{font-size:clamp(17px,1.4vw,20px);line-height:1.42;letter-spacing:-.03em;color:var(--muted);max-width:60ch;margin:0}
 
-/* work: two equal cells, hairline seams. Borders are real (not a background
-   showing through gaps), so an unfilled track can never leave a grey hole. */
-.grid{display:grid;grid-template-columns:repeat(2,1fr);box-shadow:0 0 0 1px var(--border);background:var(--card)}
-.cell{background:var(--card);padding:0 0 20px;transition:background var(--dur-micro);
-  border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
-.cell:nth-child(2n){border-right:0}
-/* a lone trailing cell spans the row instead of leaving half the grid empty */
-.cell:last-child:nth-child(odd){grid-column:1 / -1;border-right:0}
-.cell:nth-last-child(-n+2):nth-child(odd),.cell:last-child{border-bottom:0}
-.cell .thumb{aspect-ratio:4/3;background:#eceae6 center/cover no-repeat;position:relative;overflow:hidden}
-.cell .thumb.clay{background-color:#e8e5e0}
-.cell .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:16px 20px 0}
-.cell .row b{font-weight:500}
-.cell .row span{color:var(--subtle);font-size:12px;letter-spacing:0;text-transform:uppercase;white-space:nowrap}
-.cell .arrow{color:var(--subtle);transition:transform .24s var(--ease-out-quint),color .2s}
-@media (hover:hover){
-  .cell:hover{background:var(--hover)}
-  .cell:hover .arrow{color:var(--ink);transform:translate(2px,-2px)}
-}
-.ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--subtle);font-size:12px;letter-spacing:0;text-transform:uppercase}
+/* ---------- work: a drawing set — one full-width sheet per project ----------
+   Each sheet is framed like a drawing: the view on the left, the plan (with its two
+   overall dimensions) and a title block on the right. Sheets are separated by real
+   space, never glued by a shared border — adding projects adds sheets, not cramming. */
+.sheets{display:grid;gap:clamp(48px,6vw,96px)}
+.sheet{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(300px,1fr);background:var(--card);overflow:hidden;
+  box-shadow:0 0 0 1px var(--border);color:inherit}
+/* width pinned to the column: with only aspect-ratio + min-height:100% a tall side
+   column made the view compute a WIDER box and slide under the plan */
+.sheet-view{width:100%;aspect-ratio:16/10;background:#eceae6 center/cover no-repeat;min-height:100%}
+.sheet-side{display:flex;flex-direction:column;border-left:1px solid var(--border);min-width:0}
+.sheet-plan{margin:0;flex:1;display:grid;align-items:center}
+.plan-in{padding:clamp(44px,4vw,64px) clamp(28px,3vw,48px) clamp(28px,3vw,40px) clamp(40px,3.6vw,60px)}
+.tb-toggle{display:none}
+.plan{position:relative;width:100%;background-repeat:no-repeat}
 
-/* process: no boxes — three columns separated by one hairline each, numbers
-   oversized and quiet, the duration pinned to the bottom so the three align */
-.process{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);border-top:1px solid var(--border);padding-top:28px}
-.step{display:flex;flex-direction:column;gap:10px;padding-right:var(--gap);position:relative}
-.step + .step{padding-left:var(--gap);border-left:1px solid var(--border)}
-.step .n{font-size:clamp(38px,4.2vw,64px);font-weight:500;letter-spacing:-.05em;line-height:1;color:var(--border)}
-.step h3{font-size:clamp(20px,1.9vw,27px);letter-spacing:-.05em;line-height:1.2;margin:4px 0 0}
-.step p{margin:0;color:var(--muted);font-size:clamp(15px,1.15vw,17px);letter-spacing:-.03em;max-width:none}
-.step-meta{margin-top:auto;padding-top:22px;font-size:12px;text-transform:uppercase;letter-spacing:.02em;color:var(--subtle)}
+/* dimension lines: a hairline with end ticks, value centred on the line, drawn on reveal */
+.dim{position:absolute;color:var(--muted);font-size:11px;letter-spacing:0;font-variant-numeric:tabular-nums;pointer-events:none}
+.dim::before{content:"";position:absolute;background:currentColor;opacity:.55}
+.dim i{position:absolute;font-style:normal;background:var(--card);padding:0 6px;line-height:1}
+.dim-h{left:0;right:0;top:-22px;height:9px;border-inline:1px solid currentColor}
+.dim-h::before{left:0;right:0;top:4px;height:1px}
+.dim-h i{left:50%;top:-1px;transform:translate(-50%,-30%)}
+.dim-v{top:0;bottom:0;left:-22px;width:9px;border-block:1px solid currentColor}
+.dim-v::before{top:0;bottom:0;left:4px;width:1px}
+.dim-v i{top:50%;left:4px;transform:translate(-50%,-50%) rotate(-90deg)}
+
+.tb{border-top:1px solid var(--border)}
+.tb-head{padding:18px 22px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.tb-no{font-size:12px;color:var(--subtle);letter-spacing:.02em}
+.tb-head h3{font-size:clamp(18px,1.5vw,22px);letter-spacing:-.04em;line-height:1.2}
+.tb-head p{grid-column:2;margin:4px 0 0;color:var(--muted);font-size:15px;letter-spacing:-.02em}
+.tb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin:0;border-top:1px solid var(--border)}
+.tb-grid div{padding:12px 22px 14px;min-width:0}
+.tb-grid div + div{border-left:1px solid var(--border)}
+.tb-grid dt{font-size:11px;color:var(--subtle);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.tb-grid dd{margin:0;font-size:15px;white-space:nowrap}
+/* a sheet without a plan: the view takes the full width (a wide drawing), and the
+   title block runs along its bottom edge in the same two columns as a plan sheet —
+   no empty half-sheet */
+.sheet:not(.has-plan){grid-template-columns:1fr}
+.sheet:not(.has-plan) .sheet-view{aspect-ratio:21/9}
+.sheet:not(.has-plan) .sheet-side{border-left:0;border-top:1px solid var(--border)}
+.sheet:not(.has-plan) .tb{border-top:0;display:grid;grid-template-columns:minmax(0,1.62fr) minmax(300px,1fr)}
+.sheet:not(.has-plan) .tb-head{align-self:center}
+.sheet:not(.has-plan) .tb-grid{border-top:0;border-left:1px solid var(--border)}
+a.sheet{transition:box-shadow var(--dur-micro)}
+@media (hover:hover){ a.sheet:hover{box-shadow:0 0 0 1px var(--ink)} }
+
+/* reveal choreography for a sheet: the sheet arrives with the standard reveal,
+   then its dimension lines draw out from their centre — once */
+.sheet .dim{transition:clip-path .9s var(--ease-out-expo) .35s,opacity .4s linear .35s}
+.sheet .dim-h{clip-path:inset(0 50% 0 50%)}
+.sheet .dim-v{clip-path:inset(50% 0 50% 0)}
+.sheet .dim i{opacity:0;transition:opacity .4s linear .8s}
+.sheet.in .dim,html.reveal-failsafe .sheet .dim{clip-path:inset(-20px)}
+.sheet.in .dim i,html.reveal-failsafe .sheet .dim i{opacity:1}
+
+/* ---------- process: one chain dimension, three spans ----------
+   Not three numbered columns: a single dimension line runs across, and each step is
+   one span of it. Order is carried by the line, so no 01/02/03. */
+.chain{list-style:none;margin:0;padding:34px 0 0;display:grid;grid-template-columns:repeat(3,1fr);position:relative}
+/* the line: a light hairline that is always there, and an ink fill of the SAME 1px
+   that runs along it on a loop — only the colour moves, the line never thickens */
+.chain::before,.chain::after{content:"";position:absolute;left:0;right:0;top:12px;height:1px}
+.chain::before{background:var(--border)}
+.chain::after{background:var(--ink);transform-origin:left;transform:scaleX(0)}
+/* one 10 s cycle: the fill stops at every tick (--s2/--s3 = tick positions as a
+   fraction of the line, measured in main.js), holds, moves on; at the end it fades
+   and starts over. The step whose tick the fill is resting on grows slightly —
+   one keyframe, offset by 2.6 s per step, so all three stay in sync with the line. */
+.chain{--s2:.3333;--s3:.6667;--cyc:10s}
+.chain.in::after,html.reveal-failsafe .chain::after{animation:chain-fill var(--cyc) var(--ease-out-quint) .3s infinite}
+.chain-t{transform-origin:0 0}
+.chain.in .chain-t,html.reveal-failsafe .chain .chain-t{animation:chain-step var(--cyc) var(--ease-out-quint) infinite}
+.chain li:nth-child(1) .chain-t{animation-delay:.3s}
+.chain li:nth-child(2) .chain-t{animation-delay:2.9s}
+.chain li:nth-child(3) .chain-t{animation-delay:5.5s}
+@keyframes chain-step{0%{transform:none}3%,16%{transform:scale(1.06)}19%,100%{transform:none}}
+@keyframes chain-fill-y{0%,16%{transform:scaleY(0);opacity:1}26%,42%{transform:scaleY(var(--s2))}52%,68%{transform:scaleY(var(--s3))}78%,88%{transform:scaleY(1);opacity:1}96%{transform:scaleY(1);opacity:0}100%{transform:scaleY(0);opacity:0}}
+@keyframes chain-fill{0%,16%{transform:scaleX(0);opacity:1}26%,42%{transform:scaleX(var(--s2))}52%,68%{transform:scaleX(var(--s3))}78%,88%{transform:scaleX(1);opacity:1}96%{transform:scaleX(1);opacity:0}100%{transform:scaleX(0);opacity:0}}
+.chain li{position:relative;padding-right:var(--gap)}
+.chain li::before,.chain li:last-child::after{content:"";position:absolute;top:-28px;width:1px;height:13px;background:var(--ink);
+  opacity:0;transition:opacity .3s linear}
+.chain li::before{left:0}
+.chain li:last-child::after{right:0}
+.chain li:nth-child(2)::before{transition-delay:.55s}
+.chain li:nth-child(3)::before{transition-delay:.85s}
+.chain li:last-child::after{transition-delay:1.1s}
+.chain h3{font-size:clamp(20px,1.9vw,27px);letter-spacing:-.05em;line-height:1.2;margin:0 0 10px}
+.chain p{margin:0;color:var(--muted);font-size:clamp(15px,1.15vw,17px);letter-spacing:-.03em;max-width:36ch}
+.chain.in li::before,.chain.in li:last-child::after,html.reveal-failsafe .chain li::before,html.reveal-failsafe .chain li:last-child::after{opacity:.5}
 
 /* contact: statement left, form right — the one card on the page */
 .cta-body{display:grid;grid-template-columns:1.1fr minmax(360px,.75fr);gap:calc(var(--gap) * 1.4);align-items:start}
 .cta h2{font-size:clamp(36px,4.4vw,64px);line-height:1.05;letter-spacing:-.06em;margin:0 0 20px;max-width:none}
-.cta p{font-size:clamp(17px,1.4vw,20px);color:var(--muted);letter-spacing:-.03em;margin:0 0 30px;max-width:none}
+.cta-body p{font-size:clamp(17px,1.4vw,20px);color:var(--muted);letter-spacing:-.03em;margin:0;max-width:none}
+/* contact lines: sentence case and real tap targets (were 12px uppercase, 16px tall) */
 .cta .card{background:var(--card);border-radius:var(--r-card);box-shadow:0 0 0 1px var(--border),var(--shadow-float);padding:28px}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .field label{font-size:12px;color:var(--subtle);text-transform:uppercase;letter-spacing:0}
-.field input,.field textarea{font:inherit;letter-spacing:-.02em;padding:10px 12px;border-radius:10px;border:0;box-shadow:0 0 0 1px var(--border);background:var(--bg);color:var(--ink)}
+.field input,.field textarea{font:inherit;letter-spacing:-.02em;padding:12px 14px;min-height:46px;border-radius:10px;border:0;box-shadow:0 0 0 1px var(--border);background:var(--bg);color:var(--ink)}
 .field input:focus-visible,.field textarea:focus-visible{outline:0;box-shadow:0 0 0 1px var(--ink)}
+.cta .card .btn{min-height:46px}
 
 /* ---------- signature: the logo closes the page ----------
    No header, so the mark lands here as the last thing you see — like a signature
@@ -283,6 +346,8 @@ section.sec > .rail > .band{padding-top:28px}
   border-top:1px solid #ffffff1f;padding-top:13px;color:#ffffff8c;font-size:12px;letter-spacing:0}
 .sign-meta .draft{color:#d9b56b}
 @media (hover:hover){ .sign-meta a:hover{color:var(--bg)} }
+/* email + phone live here now (moved out of the contact block): one line on desktop */
+.sign-contact{display:flex;gap:22px;flex-wrap:wrap}
 
 .draft{color:#b08a3c}
 /* reveal */
@@ -335,7 +400,9 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   [data-hero-mode="mobile"] .copy{position:absolute;inset:0;width:auto;pointer-events:none}
   [data-hero-mode="mobile"] .copy .st{position:absolute;left:24px;right:24px;transition:none;will-change:opacity,translate}
   [data-hero-mode="mobile"] .copy .st[data-st="0"]{top:calc(env(safe-area-inset-top) + 40px)}
-  [data-hero-mode="mobile"] .copy .st[data-st="3"]{display:block;top:auto;bottom:calc(env(safe-area-inset-bottom) + 28px);opacity:0;visibility:hidden}
+  /* the hero's closing copy + CTA is desktop-only: on a phone the finished flat is the
+     ending, and the page continues straight into the work. flat.js frames without it. */
+  [data-hero-mode="mobile"] .copy .st[data-st="3"]{display:none!important}
   [data-hero-mode="mobile"] .copy h1{font-size:clamp(30px,8.6vw,40px);margin-bottom:14px}
   [data-hero-mode="mobile"] .copy .st[data-st="0"] p,
   [data-hero-mode="mobile"] .copy .st[data-st="0"] .static-cta{display:none}
@@ -343,6 +410,19 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   [data-hero-mode="mobile"] .copy .st[data-st="3"] p{font-size:16px;margin-bottom:18px}
   [data-hero-mode="mobile"] .copy .st[data-st="3"] .kicker{margin-bottom:10px}
   [data-hero-mode="mobile"] .hint{display:block;left:0;right:0;text-align:center;bottom:calc(env(safe-area-inset-bottom) + 18px);opacity:1;transition:none}
+  /* short screens (toolbar shown, small phones, in-app browsers): a smaller copy so the
+     plan below it keeps a usable size — flat.js frames the plan under the copy, never on it */
+  @media (max-height:620px){
+    [data-hero-mode="mobile"] .copy .st[data-st="0"]{top:calc(env(safe-area-inset-top) + 28px)}
+    [data-hero-mode="mobile"] .copy h1{font-size:clamp(26px,7.4vw,32px);margin-bottom:10px}
+    [data-hero-mode="mobile"] .copy .kicker{margin-bottom:10px}
+    [data-hero-mode="mobile"] .copy .st[data-st="3"] h2{font-size:26px}
+  }
+  @media (max-height:560px){
+    [data-hero-mode="mobile"] .copy .st[data-st="0"] .meta,
+    [data-hero-mode="mobile"] .copy .st[data-st="3"] p{display:none}
+    [data-hero-mode="mobile"] .copy h1{font-size:24px}
+  }
   .flat-labels{position:absolute;inset:0;pointer-events:none;z-index:1}
   .flat-lab{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;line-height:1.25;padding:5px 8px;border-radius:8px;
     background:#ffffffe6;box-shadow:0 1px 2px #08090c14,0 6px 16px -10px #08090c40;opacity:0;will-change:transform,opacity}
@@ -351,9 +431,7 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .flat-tag{position:absolute;left:0;top:0;font-size:11px;font-variant-numeric:tabular-nums;color:var(--ink);opacity:0;will-change:transform,opacity;white-space:nowrap}
   .flat-hud{position:fixed;right:8px;top:8px;z-index:99;font:11px/1.3 ui-monospace,monospace;background:#000c;color:#0f0;padding:6px 8px;border-radius:6px;white-space:pre}
 
-  /* below the fold: the index column becomes a running head above the content,
-     every grid collapses to one column, the rhythm survives as the hairline step.
-     Same 24px edge as the hero's .sticky padding — one composition. */
+  /* below the fold: every grid collapses to one column; same 24px edge as the hero */
   .sec .rail,.sign .rail{padding:0 24px}
   section.sec{padding:var(--s-sec) 0}
   .band{display:block;gap:0}
@@ -361,29 +439,69 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   section.sec > .rail > .band::before,.sign::before{left:24px;right:24px}
   .stmt .lead{max-width:none;font-size:26px}
   .sec-head h2{font-size:34px}
-  .sec-head p,.cta p{font-size:17px}
-  .facts{grid-template-columns:1fr;gap:20px;padding-top:20px}
-  .facts div{flex-direction:row;align-items:baseline;gap:14px}
-  .facts b{font-size:32px;min-width:4ch}
-  .facts span{max-width:none}
-  .grid{grid-template-columns:1fr}
-  .cell,.cell:last-child:nth-child(odd){grid-column:auto;border-right:0}
-  .cell{border-bottom:1px solid var(--border)}
-  .cell:last-child{border-bottom:0}
-  .process{grid-template-columns:1fr;gap:0;padding-top:20px}
-  .step{padding:24px 0}
-  .step + .step{padding-left:0;border-left:0;border-top:1px solid var(--border)}
-  .step .n{font-size:32px}
-  .step h3{font-size:21px}
-  .step-meta{padding-top:14px}
+  .sec-head p,.cta-body p{font-size:17px}
+  /* sheets: view on top, then plan, then title block — the sheet runs edge to edge
+     so the image gets the full phone width */
+  .sheets{gap:56px;margin-inline:-24px}
+  .sheet{grid-template-columns:1fr;box-shadow:0 1px 0 var(--border),0 -1px 0 var(--border)}
+  .sheet-view{aspect-ratio:4/3;min-height:0}
+  .sheet:not(.has-plan) .sheet-view{aspect-ratio:4/3}
+  .sheet:not(.has-plan) .tb{display:block}
+  .sheet:not(.has-plan) .tb-grid{border-left:0;border-top:1px solid var(--border)}
+  .sheet-side{border-left:0}
+  /* the title block sits right under the view; the plan folds out below it on tap.
+     0fr→1fr row animates the real height (no max-height guess). */
+  .sheet-side{display:flex}
+  .tb{order:1;cursor:pointer;transition:background var(--dur-micro)}
+  .sheet.has-plan .tb:active{background:var(--hover)}
+  /* height is animated in JS (main.js, Web Animations) — the CSS only holds the end states */
+  /* flex:none — with the desktop flex:1 the flex-basis wins and `height` (what the
+     animation drives) is ignored, so the plan would just pop in */
+  .sheet-plan{order:2;display:block;flex:none;height:0;overflow:hidden}
+  .sheet.plan-open .sheet-plan{height:auto;border-top:1px solid var(--border)}
+  .plan-in{padding:44px 24px 24px 46px}
+  /* "Plan +" pill: the affordance. + turns into × when open */
+  .tb-head{grid-template-columns:auto 1fr auto;align-items:center}
+  .tb-toggle{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 14px;margin:-4px -6px -4px 0;
+    border:0;border-radius:999px;background:var(--card);box-shadow:0 0 0 1px var(--border);color:var(--ink);font-size:13px;cursor:pointer;position:relative;
+    transition:background var(--dur-micro),box-shadow var(--dur-micro)}
+  .tb-toggle::after{content:"";position:absolute;inset:-6px -4px}            /* 46px tap height */
+  .tb-toggle i{position:relative;width:10px;height:10px;transition:transform .35s var(--ease-out-quint)}
+  .tb-toggle i::before,.tb-toggle i::after{content:"";position:absolute;background:currentColor}
+  .tb-toggle i::before{left:0;right:0;top:4.5px;height:1px}
+  .tb-toggle i::after{top:0;bottom:0;left:4.5px;width:1px}
+  .sheet.plan-open .tb-toggle{background:var(--ink);color:var(--card);box-shadow:none}
+  .sheet.plan-open .tb-toggle i{transform:rotate(45deg)}
+  .tb-head p{grid-column:2 / -1}
+  /* dimension lines draw when the plan opens, not when the sheet scrolls in */
+  .sheet.in:not(.plan-open) .dim-h{clip-path:inset(0 50% 0 50%)}
+  .sheet.in:not(.plan-open) .dim-v{clip-path:inset(50% 0 50% 0)}
+  .sheet.in:not(.plan-open) .dim i{opacity:0}
+  .tb-head{padding:16px 24px 14px}
+  .tb-grid div{padding:12px 24px 14px}
+  .tb-grid div + div{padding-left:16px}
+  /* process: the chain turns vertical — the line runs down the left edge */
+  .chain{grid-template-columns:1fr;padding:0 0 0 28px;gap:30px}
+  .chain::before,.chain::after{left:6px;right:auto;top:0;bottom:0;width:1px;height:auto}
+  .chain::after{transform-origin:top;transform:scaleY(0)}
+  .chain.in::after,html.reveal-failsafe .chain::after{animation-name:chain-fill-y}
+  .chain li{padding-right:0}
+  .chain li::before{left:-28px;top:9px;width:13px;height:1px}
+  .chain li:last-child::after{display:none}
+  .chain h3{font-size:21px;margin-bottom:6px}
   .cta-body{grid-template-columns:1fr}
   .cta h2{font-size:38px}
-  .cta h2,.cta p{max-width:none}
+  .cta h2,.cta-body p{max-width:none}
   .sign{padding:40px 0 20px}
   .sign-lockup{align-items:flex-end;gap:18px}
   .sign-mark{width:64px}
   .sign-meta{flex-direction:column;gap:6px}
-  .jump{right:16px;bottom:calc(16px + env(safe-area-inset-bottom))}
+  /* phones: email/phone are real tap targets, not 12px lines */
+  .sign-contact{flex-direction:column;gap:0;font-size:14px}
+  .sign-contact > *{display:flex;align-items:center;min-height:44px}
+  /* no floating CTA on phones: it covered body copy and the contact heading; the
+     hero ends on a CTA and the contact section is one swipe away */
+  .jump{display:none}
 }
 @media (max-width:420px){ .nav-process{display:none} }
 
@@ -393,4 +511,7 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .link::after{transition:none!important}
   .sign-mark,.sign-word{transition:none;opacity:1;transform:none;clip-path:none}
   .jump{transition:none}
+  .tb-toggle i{transition:none}
+  .chain::after{animation:none!important;transform:none;opacity:.5}
+  .chain-t{animation:none!important}
 }
