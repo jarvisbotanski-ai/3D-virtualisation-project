@@ -269,9 +269,20 @@ a.sheet{transition:box-shadow var(--dur-micro)}
 .chain::before,.chain::after{content:"";position:absolute;left:0;right:0;top:12px;height:1px}
 .chain::before{background:var(--border)}
 .chain::after{background:var(--ink);transform-origin:left;transform:scaleX(0)}
-.chain.in::after,html.reveal-failsafe .chain::after{animation:chain-fill 4.2s var(--ease-out-quint) .3s infinite}
-@keyframes chain-fill-y{0%{transform:scaleY(0);opacity:1}62%{transform:scaleY(1);opacity:1}82%{transform:scaleY(1);opacity:1}100%{transform:scaleY(1);opacity:0}}
-@keyframes chain-fill{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}82%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+/* one 10 s cycle: the fill stops at every tick (--s2/--s3 = tick positions as a
+   fraction of the line, measured in main.js), holds, moves on; at the end it fades
+   and starts over. The step whose tick the fill is resting on grows slightly —
+   one keyframe, offset by 2.6 s per step, so all three stay in sync with the line. */
+.chain{--s2:.3333;--s3:.6667;--cyc:10s}
+.chain.in::after,html.reveal-failsafe .chain::after{animation:chain-fill var(--cyc) var(--ease-out-quint) .3s infinite}
+.chain-t{transform-origin:0 0}
+.chain.in .chain-t,html.reveal-failsafe .chain .chain-t{animation:chain-step var(--cyc) var(--ease-out-quint) infinite}
+.chain li:nth-child(1) .chain-t{animation-delay:.3s}
+.chain li:nth-child(2) .chain-t{animation-delay:2.9s}
+.chain li:nth-child(3) .chain-t{animation-delay:5.5s}
+@keyframes chain-step{0%{transform:none}3%,16%{transform:scale(1.06)}19%,100%{transform:none}}
+@keyframes chain-fill-y{0%,16%{transform:scaleY(0);opacity:1}26%,42%{transform:scaleY(var(--s2))}52%,68%{transform:scaleY(var(--s3))}78%,88%{transform:scaleY(1);opacity:1}96%{transform:scaleY(1);opacity:0}100%{transform:scaleY(0);opacity:0}}
+@keyframes chain-fill{0%,16%{transform:scaleX(0);opacity:1}26%,42%{transform:scaleX(var(--s2))}52%,68%{transform:scaleX(var(--s3))}78%,88%{transform:scaleX(1);opacity:1}96%{transform:scaleX(1);opacity:0}100%{transform:scaleX(0);opacity:0}}
 .chain li{position:relative;padding-right:var(--gap)}
 .chain li::before,.chain li:last-child::after{content:"";position:absolute;top:-28px;width:1px;height:13px;background:var(--ink);
   opacity:0;transition:opacity .3s linear}
@@ -448,4 +459,5 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .sign-mark,.sign-word{transition:none;opacity:1;transform:none;clip-path:none}
   .jump{transition:none}
   .chain::after{animation:none!important;transform:none;opacity:.5}
+  .chain-t{animation:none!important}
 }

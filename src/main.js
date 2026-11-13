@@ -36,6 +36,24 @@ document.getElementById('workSheets').innerHTML = PROJECTS.map((p, i) => {
   return `<${tag} class="sheet${p.plan ? ' has-plan' : ''}"${p.href ? ` href="${esc(p.href)}"` : ''} data-reveal>${view}<div class="sheet-side">${plan}${block}</div></${tag}>`;
 }).join('');
 
+// ---------- process: tick positions for the looping fill (styles.css .chain) ----------
+// Desktop columns are equal (1/3, 2/3), but on phones the steps stack with different
+// text heights, so the stops are measured, not assumed.
+const chain = document.querySelector('.chain');
+if (chain) {
+  const TICK_Y = 9;   // .chain li::before top on phones
+  const syncChain = () => {
+    const [, b, c] = chain.children;
+    const vertical = getComputedStyle(chain).gridTemplateColumns.split(' ').length === 1;
+    const len = vertical ? chain.clientHeight : chain.clientWidth;
+    if (!len || !b || !c) return;
+    const at = (li) => (vertical ? li.offsetTop + TICK_Y : li.offsetLeft) / len;
+    chain.style.setProperty('--s2', at(b).toFixed(4));
+    chain.style.setProperty('--s3', at(c).toFixed(4));
+  };
+  new ResizeObserver(syncChain).observe(chain);
+}
+
 // ---------- scroll + hero ----------
 // Smooth scroll first: its loop task must run before the hero's in each frame,
 // so the camera reads this frame's scroll position, not last frame's.
