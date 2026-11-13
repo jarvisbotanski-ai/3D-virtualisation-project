@@ -17,7 +17,7 @@ export const PROJECTS = [
     place: 'Vilnius', year: 2026, area: 80,
     size: [5.93, 13.54],
     view: '/img/04-textured.png',
-    plan: '/img/01-plan.png',
+    plan: '/img/01-plan-cut.png',        // paper outside the walls made transparent (sits on the white sheet)
     planPx: [1600, 1000],                 // image size, for the crop's aspect
     planBox: [5.44, 18.7, 94.63, 81.3],   // drawing bbox in % (l, t, r, b) — measured from the image
   },
