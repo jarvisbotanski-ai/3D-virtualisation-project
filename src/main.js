@@ -25,16 +25,31 @@ document.getElementById('workSheets').innerHTML = PROJECTS.map((p, i) => {
     const dims = p.size
       ? `<span class="dim dim-h"><i>${Math.max(...p.size).toFixed(2)}</i></span><span class="dim dim-v"><i>${Math.min(...p.size).toFixed(2)}</i></span>`
       : '';
-    plan = `<figure class="sheet-plan"><div class="plan" role="img" aria-label="Floor plan" style="${img}">${dims}</div></figure>`;
+    plan = `<figure class="sheet-plan" id="plan-${i + 1}"><div class="plan-in"><div class="plan" role="img" aria-label="Floor plan" style="${img}">${dims}</div></div></figure>`;
   }
   const row = (k, v) => (v == null || v === '' ? '' : `<div><dt>${k}</dt><dd>${v}</dd></div>`);
   const block = `<div class="tb">` +
-    `<div class="tb-head"><span class="tb-no num">${no}</span><h3>${esc(p.title)}</h3>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>` +
+    `<div class="tb-head"><span class="tb-no num">${no}</span><h3>${esc(p.title)}</h3>` +
+    // phones only (hidden on desktop, where the plan is always on the sheet)
+    (p.plan ? `<button type="button" class="tb-toggle" aria-expanded="false" aria-controls="plan-${i + 1}">Plan<i aria-hidden="true"></i></button>` : '') +
+    `${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>` +
     `<dl class="tb-grid num">${row('Location', p.place && esc(p.place))}${row('Area', p.area && `${p.area} m²`)}${row('Year', p.year)}${row('Rooms', p.rooms)}</dl>` +
     `</div>`;
   const tag = p.href ? 'a' : 'article';
   return `<${tag} class="sheet${p.plan ? ' has-plan' : ''}"${p.href ? ` href="${esc(p.href)}"` : ''} data-reveal>${view}<div class="sheet-side">${plan}${block}</div></${tag}>`;
 }).join('');
+
+// ---------- work (phones): the plan folds out from under the title block ----------
+// The whole title block is the tap target; the "Plan +" pill is what tells you so.
+const PHONE = matchMedia('(max-width:860px)');
+document.getElementById('workSheets').addEventListener('click', (e) => {
+  const tb = e.target.closest('.tb');
+  const btn = tb?.querySelector('.tb-toggle');
+  if (!btn || !PHONE.matches) return;
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.setAttribute('aria-expanded', String(open));
+  tb.closest('.sheet').classList.toggle('plan-open', open);
+});
 
 // ---------- process: tick positions for the looping fill (styles.css .chain) ----------
 // Desktop columns are equal (1/3, 2/3), but on phones the steps stack with different

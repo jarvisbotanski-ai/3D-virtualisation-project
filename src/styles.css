@@ -217,7 +217,9 @@ section.sec > .rail > .band{padding-top:28px}
    column made the view compute a WIDER box and slide under the plan */
 .sheet-view{width:100%;aspect-ratio:16/10;background:#eceae6 center/cover no-repeat;min-height:100%}
 .sheet-side{display:flex;flex-direction:column;border-left:1px solid var(--border);min-width:0}
-.sheet-plan{margin:0;flex:1;display:grid;place-items:center;padding:clamp(44px,4vw,64px) clamp(28px,3vw,48px) clamp(28px,3vw,40px) clamp(40px,3.6vw,60px)}
+.sheet-plan{margin:0;flex:1;display:grid;align-items:center}
+.plan-in{padding:clamp(44px,4vw,64px) clamp(28px,3vw,48px) clamp(28px,3vw,40px) clamp(40px,3.6vw,60px)}
+.tb-toggle{display:none}
 .plan{position:relative;width:100%;background-repeat:no-repeat}
 
 /* dimension lines: a hairline with end ticks, value centred on the line, drawn on reveal */
@@ -427,7 +429,33 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .sheet:not(.has-plan) .tb{display:block}
   .sheet:not(.has-plan) .tb-grid{border-left:0;border-top:1px solid var(--border)}
   .sheet-side{border-left:0}
-  .sheet-plan{padding:44px 24px 24px 46px}
+  /* the title block sits right under the view; the plan folds out below it on tap.
+     0fr→1fr row animates the real height (no max-height guess). */
+  .sheet-side{display:flex}
+  .tb{order:1;cursor:pointer;transition:background var(--dur-micro)}
+  .sheet.has-plan .tb:active{background:var(--hover)}
+  .sheet-plan{order:2;display:grid;grid-template-rows:0fr;align-items:stretch;
+    transition:grid-template-rows .55s var(--ease-out-quint)}
+  .plan-in{min-height:0;overflow:hidden;padding:0 24px 0 46px;transition:padding .55s var(--ease-out-quint)}
+  .sheet.plan-open .sheet-plan{grid-template-rows:1fr;border-top:1px solid var(--border)}
+  .sheet.plan-open .plan-in{padding:44px 24px 24px 46px}
+  /* "Plan +" pill: the affordance. + turns into × when open */
+  .tb-head{grid-template-columns:auto 1fr auto;align-items:center}
+  .tb-toggle{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 14px;margin:-4px -6px -4px 0;
+    border:0;border-radius:999px;background:var(--card);box-shadow:0 0 0 1px var(--border);color:var(--ink);font-size:13px;cursor:pointer;position:relative;
+    transition:background var(--dur-micro),box-shadow var(--dur-micro)}
+  .tb-toggle::after{content:"";position:absolute;inset:-6px -4px}            /* 46px tap height */
+  .tb-toggle i{position:relative;width:10px;height:10px;transition:transform .35s var(--ease-out-quint)}
+  .tb-toggle i::before,.tb-toggle i::after{content:"";position:absolute;background:currentColor}
+  .tb-toggle i::before{left:0;right:0;top:4.5px;height:1px}
+  .tb-toggle i::after{top:0;bottom:0;left:4.5px;width:1px}
+  .sheet.plan-open .tb-toggle{background:var(--ink);color:var(--card);box-shadow:none}
+  .sheet.plan-open .tb-toggle i{transform:rotate(45deg)}
+  .tb-head p{grid-column:2 / -1}
+  /* dimension lines draw when the plan opens, not when the sheet scrolls in */
+  .sheet.in:not(.plan-open) .dim-h{clip-path:inset(0 50% 0 50%)}
+  .sheet.in:not(.plan-open) .dim-v{clip-path:inset(50% 0 50% 0)}
+  .sheet.in:not(.plan-open) .dim i{opacity:0}
   .tb-head{padding:16px 24px 14px}
   .tb-grid div{padding:12px 24px 14px}
   .tb-grid div + div{padding-left:16px}
@@ -460,6 +488,7 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .link::after{transition:none!important}
   .sign-mark,.sign-word{transition:none;opacity:1;transform:none;clip-path:none}
   .jump{transition:none}
+  .sheet-plan,.plan-in,.tb-toggle i{transition:none}
   .chain::after{animation:none!important;transform:none;opacity:.5}
   .chain-t{animation:none!important}
 }
