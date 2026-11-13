@@ -120,7 +120,15 @@ const hero = document.getElementById('hero');
 const contact = document.getElementById('contact');
 // visible between "hero scrolled past" and "contact on screen" — it would be noise there
 let heroGone = false, atContact = false;
-const syncJump = () => jump.classList.toggle('on', heroGone && !atContact);
+// the pill lives in the bottom-right corner; anything with text that reaches that
+// corner (statement, headings, title blocks, process, footer) hides it while it is there
+const busy = new Set();
+const syncJump = () => jump.classList.toggle('on', heroGone && !atContact && busy.size === 0);
+const corner = new IntersectionObserver((es) => {
+  for (const e of es) e.isIntersecting ? busy.add(e.target) : busy.delete(e.target);
+  syncJump();
+}, { rootMargin: '-60% 0px 0px 0px' });   // bottom 40%: hidden before text reaches it, not while fading
+document.querySelectorAll('.stmt .lead, .sec-head, .tb, .chain, #sign').forEach((el) => corner.observe(el));
 new IntersectionObserver(([e]) => { heroGone = !e.isIntersecting; syncJump(); },
   { threshold: 0, rootMargin: '-40% 0px 0px 0px' }).observe(hero);
 new IntersectionObserver(([e]) => { atContact = e.isIntersecting; syncJump(); },

@@ -502,9 +502,12 @@ export function setupFlat(el, { onFail } = {}) {
     heroTop = r.top + scrollY;
     heroRange = Math.max(1, r.height - vh);
     heroBottom = heroTop + r.height;
-    // the plan starts under the intro copy and the finished flat ends above the CTA
-    const stTop = el.sticky.getBoundingClientRect().top;
-    introTop = Math.min(vh * 0.42, el.intro.getBoundingClientRect().bottom - stTop + 44);
+    // the plan starts under the intro copy and the finished flat ends above the CTA.
+    // Layout box only (offsetTop/offsetHeight ignore `translate`): the intro is shifted up
+    // to -24px once you are past it, and `resize` also fires down there (iOS toolbar) —
+    // measuring the shifted box put the plan 24px higher, over the copy, on the way back.
+    // .copy is inset:0 in the sticky box, so the offsets are already sticky-relative.
+    introTop = Math.min(vh * 0.42, el.intro.offsetTop + el.intro.offsetHeight + 44);
     outroBottom = Math.min(vh * 0.45, el.outro.offsetHeight + 40);
     dimsKey = '';
     dirty = true;

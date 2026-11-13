@@ -83,6 +83,8 @@ nav a.link{color:var(--muted);transition:color var(--dur-micro)}
 
 /* floating CTA: the only chrome that overlays the page, and only after the hero.
    Replaces the header button — same job, no bar. */
+/* desktop only now: phones hide it (below). It hides over the work sheets and the
+   process — see main.js — so it never sits on top of text */
 .jump{position:fixed;right:clamp(16px,2.4vw,28px);bottom:clamp(16px,2.4vw,28px);z-index:25;
   display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:999px;
   background:var(--ink);color:#fff;font-size:14px;white-space:nowrap;
@@ -130,9 +132,13 @@ nav a.link{color:var(--muted);transition:color var(--dur-micro)}
 
 /* copy block: a layer over the scene, left column (~38 % of the viewport) */
 .copy{position:absolute;inset:0 auto 0 0;width:var(--copy-col);z-index:2;pointer-events:none}
+/* Sequential, not cross-fade: all four stations sit in the same spot, so a cross-fade
+   showed two headlines on top of each other mid-switch (and on fast scroll, three).
+   The leaving copy is gone in .18s; the arriving copy waits .2s before it starts. */
 .copy .st{position:absolute;left:var(--hero-pad);right:40px;top:50%;transform:translateY(calc(-50% + 12px));opacity:0;
-  transition:opacity .6s var(--ease-out-expo),transform .9s var(--ease-out-expo)}
-.copy .st.on{opacity:1;transform:translateY(-50%);pointer-events:auto}
+  transition:opacity .18s linear,transform .3s var(--ease-out-expo)}
+.copy .st.on{opacity:1;transform:translateY(-50%);pointer-events:auto;
+  transition:opacity .6s var(--ease-out-expo) .2s,transform .9s var(--ease-out-expo) .2s}
 .kicker{font-size:12px;color:var(--subtle);letter-spacing:.02em;text-transform:uppercase;font-weight:500;margin-bottom:14px}
 .copy h1{font-size:clamp(36px,3.9vw,64px);line-height:1.06;letter-spacing:-.06em;margin-bottom:20px}
 /* Stations 2–3 sit a clear step below the headline: same scaling behaviour as h1
