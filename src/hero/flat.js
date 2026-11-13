@@ -14,7 +14,9 @@
 //   light.webp,color.webp,plan.webp} to public/flat/ and update MAP/ROOMS below
 //   from proto/maps/info.json + rooms.json.
 //
-// Debug: ?hud=1 (fps / DPR / steps)   ?dpr=N (force pixel ratio)   ?p=0..1 (freeze progress)
+// Debug: ?hud=1 (fps, frame p95, tier, scroll jumps, viewport resizes)   ?dpr=N (force
+// pixel ratio)   ?p=0..1 (freeze progress)   ?follow=N (camera follow rate, 1/s)
+// sessionStorage 'flat-tier' remembers a quality step-down; clear it to retest tier 0.
 
 // proto/maps/info.json
 const MAP = { W: 912, H: 1886, ppm: 128, margin: 0.6, size: [5.927, 2.756, 13.537] };
@@ -33,6 +35,10 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// smooth max/min (hyperbolic): equal to max/min far from the corner, C¹ through it
+const smax = (a, b, k) => (a + b + Math.sqrt((a - b) * (a - b) + k * k)) / 2;
+const smin = (a, b, k) => (a + b - Math.sqrt((a - b) * (a - b) + k * k)) / 2;
+const SOFT = 1.2;   // m of camera-target travel over which the sweep camera eases in/out
 
 const PPM = MAP.ppm;
 const MAP_W = MAP.W / PPM, MAP_H = MAP.H / PPM;
@@ -57,10 +63,11 @@ precision highp float;
 precision highp sampler2D;
 in vec2 vNdc;
 out vec4 outColor;
-uniform sampler2D uGeo, uLight, uColor, uPlan;
+uniform sampler2D uGeo, uLight, uColor, uPlan, uMax;
 uniform vec3 uCamPos, uCamF, uCamR, uCamU, uSun, uBg;
 uniform float uTan, uAspect, uPpm, uLineZ, uBand, uLineA, uDitherPx, uPxAngle, uFogNear, uFogFar;
 uniform vec2 uMap, uSunImg, uLineX;
+uniform vec4 uFoot;          // maquette footprint (+4 texels): x0, z0, x1, z1 in map metres
 uniform int uMaxSteps;
 
 const float Y_MIN = -0.16;   // the table the maquette stands on
@@ -88,39 +95,84 @@ float bayer8(vec2 c){
   return (float(v) + 0.5) / 64.0;
 }
 
+// conservative max height of a 16×16-texel cell and its 8 neighbours (built once from
+// uGeo at load, rounded UP) — lets the march skip empty floor/table in blocks
+const float CELL = 16.0;
+float maxAt(vec2 xz){
+  ivec2 c = clamp(ivec2(floor(xz * uPpm / CELL)), ivec2(0), textureSize(uMax, 0) - 1);
+  return texelFetch(uMax, c, 0).r * (Y_TOP - Y_MIN) + Y_MIN;
+}
+
 void main(){
   vec3 ro = uCamPos;
   vec3 rd = normalize(uCamF + vNdc.x * uTan * uAspect * uCamR + vNdc.y * uTan * uCamU);
   if (rd.y > -1e-4) { outColor = vec4(uBg, 1.0); return; }
 
-  // march the slab between the highest possible surface and the table
+  // march the slab between the highest possible surface and the table. Same sample
+  // positions as a plain fixed-step march (so the image is unchanged), but:
+  //  · only the part of the ray over the maquette's footprint is marched — outside it
+  //    the height is the table, so the ray simply lands at t1;
+  //  · samples go in blocks of K; a whole block is skipped when its lowest point is
+  //    still above the max-height cell under it (one fetch instead of K).
   float t0 = max(0.0, (Y_TOP - ro.y) / rd.y);
   float t1 = (Y_MIN - ro.y) / rd.y;
-  float texels = (t1 - t0) * length(rd.xz) * uPpm;
+  float lxz = length(rd.xz);
+  float texels = (t1 - t0) * lxz * uPpm;
   int n = int(clamp(ceil(texels / 2.2), 3.0, float(uMaxSteps)));
   float dt = (t1 - t0) / float(n);
+
+  float ta = t0, tb = t1;
+  if (abs(rd.x) > 1e-6) {
+    float u = (uFoot.x - ro.x) / rd.x, w = (uFoot.z - ro.x) / rd.x;
+    ta = max(ta, min(u, w)); tb = min(tb, max(u, w));
+  } else if (ro.x < uFoot.x || ro.x > uFoot.z) tb = -1.0;
+  if (abs(rd.z) > 1e-6) {
+    float u = (uFoot.y - ro.z) / rd.z, w = (uFoot.w - ro.z) / rd.z;
+    ta = max(ta, min(u, w)); tb = min(tb, max(u, w));
+  } else if (ro.z < uFoot.y || ro.z > uFoot.w) tb = -1.0;
+
   float a = t0, b = t1;
-  for (int i = 1; i <= 96; i++) {
-    if (i > n) break;
-    float t = t0 + dt * float(i);
-    vec3 p = ro + rd * t;
-    if (p.y <= heightAt(p.xz)) { b = t; break; }
-    a = t;
+  bool hit = false;
+  if (ta < tb) {
+    int i = max(1, int(floor((ta - t0) / dt)));
+    int iEnd = min(n, int(ceil((tb - t0) / dt)));
+    int K = int(clamp(floor((2.0 * CELL - 4.0) / max(dt * lxz * uPpm, 1e-3)), 1.0, 16.0));
+    for (int blk = 0; blk < 96; blk++) {
+      if (i > iEnd || hit) break;
+      int j1 = min(i + K - 1, iEnd);
+      float tl = t0 + dt * float(j1);
+      vec3 pm = ro + rd * (t0 + dt * 0.5 * float(i - 1 + j1));
+      if (ro.y + rd.y * tl > maxAt(pm.xz)) { i = j1 + 1; continue; }
+      for (int j = 0; j < 16; j++) {
+        int s = i + j;
+        if (s > j1) break;
+        float t = t0 + dt * float(s);
+        vec3 p = ro + rd * t;
+        if (p.y <= heightAt(p.xz)) { b = t; a = t - dt; hit = true; break; }
+      }
+      i = j1 + 1;
+    }
   }
-  for (int k = 0; k < 6; k++) {
-    float m = 0.5 * (a + b);
-    vec3 p = ro + rd * m;
-    if (p.y <= heightAt(p.xz)) b = m; else a = m;
+  if (hit) {
+    for (int k = 0; k < 6; k++) {
+      float m = 0.5 * (a + b);
+      vec3 p = ro + rd * m;
+      if (p.y <= heightAt(p.xz)) b = m; else a = m;
+    }
   }
   vec3 p = ro + rd * b;
   vec2 uv = p.xz / uMap;
   bool inMap = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
 
-  // surface orientation from the height field gradient (vertical faces = steep)
+  // surface orientation from the height field gradient (vertical faces = steep).
+  // Well clear of the footprint it is flat table: skip the four extra fetches.
   float e = 1.0 / uPpm;
-  float hx = heightAt(p.xz + vec2(e, 0.0)) - heightAt(p.xz - vec2(e, 0.0));
-  float hz = heightAt(p.xz + vec2(0.0, e)) - heightAt(p.xz - vec2(0.0, e));
-  vec2 grad = vec2(hx, hz) / (2.0 * e);
+  vec2 grad = vec2(0.0);
+  if (all(greaterThan(p.xz, uFoot.xy - 3.0 * e)) && all(lessThan(p.xz, uFoot.zw + 3.0 * e))) {
+    float hx = heightAt(p.xz + vec2(e, 0.0)) - heightAt(p.xz - vec2(e, 0.0));
+    float hz = heightAt(p.xz + vec2(0.0, e)) - heightAt(p.xz - vec2(0.0, e));
+    grad = vec2(hx, hz) / (2.0 * e);
+  }
   float side = smoothstep(2.5, 9.0, length(grad));
   vec3 sideN = normalize(vec3(-grad.x, 0.0, -grad.y) + vec3(0.0, 1e-4, 0.0));
   vec3 nrm = normalize(mix(vec3(0.0, 1.0, 0.0), sideN, side));
@@ -180,9 +232,44 @@ void main(){
   outColor = vec4(col, 1.0);
 }`;
 
-const UNIFORMS = ['uGeo', 'uLight', 'uColor', 'uPlan', 'uCamPos', 'uCamF', 'uCamR', 'uCamU', 'uSun', 'uBg',
+const UNIFORMS = ['uGeo', 'uLight', 'uColor', 'uPlan', 'uMax', 'uCamPos', 'uCamF', 'uCamR', 'uCamU', 'uSun', 'uBg',
   'uTan', 'uAspect', 'uPpm', 'uLineZ', 'uBand', 'uLineA', 'uDitherPx', 'uPxAngle', 'uFogNear', 'uFogFar',
-  'uMap', 'uSunImg', 'uLineX', 'uMaxSteps'];
+  'uMap', 'uSunImg', 'uLineX', 'uFoot', 'uMaxSteps'];
+
+// Quality tiers. The dither cell is 2 CSS px in every tier (uDitherPx = 2·dpr is an
+// integer for each), so a step down changes edge sharpness only — never the pattern.
+// It is taken once, while the page is still, and never back up.
+const TIERS = [1.5, 1.0];
+const MAX_CELL = 16;                                 // = CELL in the shader
+const Y_MIN = -0.16, Y_TOP = 1.22, WALL_H = 1.2, HMAX = 3.0;   // = shader constants
+
+// Conservative max-height grid for the march to skip empty space: per 16×16-texel cell,
+// the highest surface in the cell and its 8 neighbours (covers bilinear reach + the
+// ray's travel inside one block), quantised UP. Built from the exact texels the GPU
+// samples (read back from the uploaded texture).
+function buildMaxGrid(px, W, H) {
+  const CW = Math.ceil(W / MAX_CELL), CH = Math.ceil(H / MAX_CELL);
+  const raw = new Float32Array(CW * CH).fill(Y_MIN);
+  for (let y = 0; y < H; y++) {
+    const row = ((y / MAX_CELL) | 0) * CW;
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const h = Math.max(0, px[i] / 255 * HMAX - 0.06, px[i + 1] / 255 * WALL_H);
+      const k = row + ((x / MAX_CELL) | 0);
+      if (h > raw[k]) raw[k] = h;
+    }
+  }
+  const out = new Uint8Array(CW * CH);
+  for (let cy = 0; cy < CH; cy++) for (let cx = 0; cx < CW; cx++) {
+    let m = Y_MIN;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const xx = cx + dx, yy = cy + dy;
+      if (xx >= 0 && yy >= 0 && xx < CW && yy < CH) m = Math.max(m, raw[yy * CW + xx]);
+    }
+    out[cy * CW + cx] = Math.min(255, Math.ceil((m - Y_MIN) / (Y_TOP - Y_MIN) * 255) + 2);
+  }
+  return { data: out, CW, CH };
+}
 
 /**
  * @param {object} el  { hero, sticky, host, dims, intro, outro, hint }
@@ -191,7 +278,7 @@ const UNIFORMS = ['uGeo', 'uLight', 'uColor', 'uPlan', 'uCamPos', 'uCamF', 'uCam
  */
 export function setupFlat(el, { onFail } = {}) {
   const FORCE_P = QS.has('p') ? clamp(+QS.get('p'), 0, 1) : null;
-  const DPR_CAP = QS.has('dpr') ? +QS.get('dpr') : 1.6;
+  const DPR_CAP = QS.has('dpr') ? +QS.get('dpr') : 0;   // ?dpr=N forces the pixel ratio (no tiers)
 
   const canvas = document.createElement('canvas');
   canvas.className = 'flat-canvas';
@@ -246,6 +333,30 @@ export function setupFlat(el, { onFail } = {}) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return { t, w: bmp.width, h: bmp.height };
+  }
+  // max grid from the geo texture as uploaded (read back through a framebuffer, so it
+  // is built from exactly the texels the shader samples — no 2D-canvas colour handling)
+  function maxTexture(geo, unit) {
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, geo.t, 0);
+    const px = new Uint8Array(geo.w * geo.h * 4);
+    gl.readPixels(0, 0, geo.w, geo.h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fb);
+    const g = buildMaxGrid(px, geo.w, geo.h);
+    const t = gl.createTexture();
+    textures.push(t);
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, g.CW, g.CH, 0, gl.RED, gl.UNSIGNED_BYTE, g.data);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   }
   async function init() {
     if (!gl) throw new Error('no webgl2');
@@ -258,12 +369,16 @@ export function setupFlat(el, { onFail } = {}) {
     for (const name of UNIFORMS) U[name] = gl.getUniformLocation(prog, name);
     vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
-    await Promise.all([
+    const [geo] = await Promise.all([
       texture('/flat/geo.png', 0), texture('/flat/light.webp', 1),
       texture('/flat/color.webp', 2), texture('/flat/plan.webp', 3),
     ]);
-    if (dead) return;
+    if (dead || !geo) return;
+    maxTexture(geo, 4);
     gl.uniform1i(U.uGeo, 0); gl.uniform1i(U.uLight, 1); gl.uniform1i(U.uColor, 2); gl.uniform1i(U.uPlan, 3);
+    gl.uniform1i(U.uMax, 4);
+    const pad = 4 / PPM;   // bilinear reach + margin: beyond this the geo map is pure table
+    gl.uniform4f(U.uFoot, FX0 - pad, FZ0 - pad, FX1 + pad, FZ1 + pad);
     gl.uniform2f(U.uMap, MAP_W, MAP_H);
     gl.uniform1f(U.uPpm, PPM);
     gl.uniform1f(U.uBand, BAND);
@@ -273,12 +388,14 @@ export function setupFlat(el, { onFail } = {}) {
     gl.uniform1f(U.uTan, TAN);
     gl.uniform2f(U.uLineX, FX0 - 0.35, FX1 + 0.35);
     ready = true;
-    render();
+    dirty = true;
+    request();
     el.host.classList.add('ready');
   }
 
   // ───────────── camera ─────────────
-  let vw = 0, vh = 0, dpr = 1, qualityScale = 1, maxSteps = 72;
+  let vw = 0, vh = 0, dpr = 1;
+  const maxSteps = 72;
   let introTop = 0, outroBottom = 0;
 
   // camera = look-at a ground target from `dist`, tilted `pitch` toward the viewer (+z).
@@ -300,9 +417,11 @@ export function setupFlat(el, { onFail } = {}) {
   function sweepCam(lineZ) {
     const dist = distFor(vw / (FLAT_W + 0.9));
     // the line sits ~62 % down the screen: built rooms recede above it, the drawing
-    // waits below — clamped so the screen is never half empty at the start or end
+    // waits below — limited so the screen is never half empty at the start or end.
+    // Soft limits, not a hard clamp: a hard clamp parks the camera for the first half of
+    // the sweep and then starts it at full speed in one frame (a visible lurch).
     const k = dist * TAN / Math.cos(SWEEP_PITCH);
-    const tz = clamp(lineZ - 0.26 * k, FZ0 - 0.2 + 0.72 * k, FZ1 + 0.2 - 0.9 * k);
+    const tz = smin(smax(lineZ - 0.26 * k, FZ0 - 0.2 + 0.72 * k, SOFT), FZ1 + 0.2 - 0.9 * k, SOFT);
     return { tx: (FX0 + FX1) / 2, tz, dist, pitch: SWEEP_PITCH };
   }
   function outroCam() {
@@ -336,7 +455,7 @@ export function setupFlat(el, { onFail } = {}) {
   const fmt = (m) => m.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   let dimsKey = '';
   function drawDims(B, alpha) {
-    el.dims.style.opacity = alpha > 0.001 ? alpha : 0;
+    setStyle(el.dims, 'opacity', String(alpha > 0.001 ? alpha : 0));
     if (alpha <= 0.001) return;
     const [lx, ty] = project(B, FX0, 0, FZ0);
     const [rx] = project(B, FX1, 0, FZ0);
@@ -353,28 +472,50 @@ export function setupFlat(el, { onFail } = {}) {
   }
 
   // ───────────── frame ─────────────
-  function progress() {
-    if (FORCE_P !== null) return FORCE_P;
-    const r = el.hero.getBoundingClientRect();
-    return clamp(-r.top / Math.max(1, r.height - vh), 0, 1);
-  }
+  // Hero geometry is measured on resize only (no layout reads per frame). The camera
+  // follows the scroll position through a short frame-rate-independent damper, so an
+  // uneven input — 30 fps frames, a finger stopping a fling, iOS delivering a late
+  // scroll position — reads as a quick glide instead of a jump.
+  let heroTop = 0, heroRange = 1, heroBottom = 0;
+  const FOLLOW = QS.has('follow') ? +QS.get('follow') : 16;   // 1/s — τ ≈ 60 ms
+  const targetP = () => (FORCE_P !== null ? FORCE_P : clamp((scrollY - heroTop) / heroRange, 0, 1));
+  let shownP = -1;
+
   function resize() {
-    vw = el.sticky.clientWidth; vh = el.sticky.clientHeight;
-    dpr = Math.min(devicePixelRatio || 1, DPR_CAP) * qualityScale;
-    canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
+    const w = el.sticky.clientWidth, h = el.sticky.clientHeight;
+    const nd = QS.has('dpr') ? DPR_CAP : Math.min(devicePixelRatio || 1, TIERS[tier]);
+    const cw = Math.round(w * nd), ch = Math.round(h * nd);
+    vw = w; vh = h; dpr = nd;
+    // iOS fires `resize` whenever the toolbar shows/hides; the sticky box is svh, so the
+    // size usually did not change. Reassigning canvas.width anyway reallocates and CLEARS
+    // the drawing buffer — a blank (black, alpha:false) frame on the next composite.
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    const r = el.hero.getBoundingClientRect();
+    heroTop = r.top + scrollY;
+    heroRange = Math.max(1, r.height - vh);
+    heroBottom = heroTop + r.height;
     // the plan starts under the intro copy and the finished flat ends above the CTA
     const stTop = el.sticky.getBoundingClientRect().top;
     introTop = Math.min(vh * 0.42, el.intro.getBoundingClientRect().bottom - stTop + 44);
     outroBottom = Math.min(vh * 0.45, el.outro.offsetHeight + 40);
     dimsKey = '';
+    dirty = true;
   }
 
-  let lastP = -1;
-  function render() {
-    const p = progress();
+  // style writes only when the value changes (each write invalidates style on the main thread)
+  const styleCache = new Map();
+  function setStyle(node, prop, val) {
+    let c = styleCache.get(node);
+    if (!c) styleCache.set(node, (c = {}));
+    if (c[prop] === val) return;
+    c[prop] = val;
+    node.style[prop] = val;
+  }
+
+  let dirty = true;
+  function render(p) {
     const c = camAt(p), B = basis(c);
     const lineZ = lineAt(p);
-    lastP = p;
 
     if (ready) {
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -390,67 +531,123 @@ export function setupFlat(el, { onFail } = {}) {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
-    // intro copy out, outro copy + CTA in
-    const out = sstep(0.0, A0 + 0.04, p);
-    el.intro.style.opacity = 1 - out;
-    el.intro.style.translate = `0 ${-24 * out}px`;   // `translate`, not `transform`: the mobile CSS pins transform
-    el.intro.style.visibility = out > 0.999 ? 'hidden' : '';
-    el.hint.style.opacity = 1 - sstep(0, 0.02, p);
-    const ctaIn = sstep(A3 - 0.03, A3 + 0.03, p);
-    el.outro.style.opacity = ctaIn;
-    el.outro.style.translate = `0 ${12 * (1 - ctaIn)}px`;
-    el.outro.style.visibility = ctaIn < 0.001 ? 'hidden' : 'visible';   // CSS starts it hidden
-    el.outro.style.pointerEvents = ctaIn > 0.5 ? 'auto' : 'none';
-    drawDims(B, ready ? 1 - sstep(A0 * 0.4, A0 + 0.02, p) : 0);
+    // intro copy out, outro copy + CTA in (rounded so settled values stop re-writing)
+    const r3 = (x) => Math.round(x * 1000) / 1000;
+    const out = r3(sstep(0.0, A0 + 0.04, p));
+    setStyle(el.intro, 'opacity', String(1 - out));
+    setStyle(el.intro, 'translate', `0 ${(-24 * out).toFixed(2)}px`);   // `translate`, not `transform`: the mobile CSS pins transform
+    setStyle(el.intro, 'visibility', out > 0.999 ? 'hidden' : '');
+    setStyle(el.hint, 'opacity', String(r3(1 - sstep(0, 0.02, p))));
+    const ctaIn = r3(sstep(A3 - 0.03, A3 + 0.03, p));
+    setStyle(el.outro, 'opacity', String(ctaIn));
+    setStyle(el.outro, 'translate', `0 ${(12 * (1 - ctaIn)).toFixed(2)}px`);
+    setStyle(el.outro, 'visibility', ctaIn < 0.001 ? 'hidden' : 'visible');   // CSS starts it hidden
+    setStyle(el.outro, 'pointerEvents', ctaIn > 0.5 ? 'auto' : 'none');
+    drawDims(B, ready ? r3(1 - sstep(A0 * 0.4, A0 + 0.02, p)) : 0);
 
     // room labels: appear once their room has been built
     for (const r of rooms) {
-      const a = ready ? sstep(0.55, 0.9, (lineZ - r.cz) / BAND) : 0;
-      if (a <= 0.001) { if (r.shown) { r.el.style.opacity = 0; r.shown = false; } continue; }
+      const a = ready ? r3(sstep(0.55, 0.9, (lineZ - r.cz) / BAND)) : 0;
+      if (a <= 0.001) { if (r.shown) { setStyle(r.el, 'opacity', '0'); r.shown = false; } continue; }
       const [x, y] = project(B, r.cx, 1.35, r.cz);
-      r.el.style.opacity = a;
-      r.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%) translateY(${8 * (1 - a)}px)`;
+      setStyle(r.el, 'opacity', String(a));
+      setStyle(r.el, 'transform', `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%) translateY(${(8 * (1 - a)).toFixed(2)}px)`);
       r.shown = true;
     }
-    const tagA = ready ? sstep(A1 - 0.02, A1 + 0.02, p) * (1 - sstep(A2 - 0.04, A2, p)) : 0;
+    const tagA = ready ? r3(sstep(A1 - 0.02, A1 + 0.02, p) * (1 - sstep(A2 - 0.04, A2, p))) : 0;
     if (tagA > 0.001) {
       const [x, y] = project(B, FX1 + 0.42, 0, lineZ);
-      tag.style.opacity = tagA;
-      tag.textContent = `${clamp(lineZ - FZ0, 0, FLAT_L).toFixed(1)} m`;
-      tag.style.transform = `translate(${Math.min(x, vw - 34)}px, ${y}px) translate(-100%, -120%)`;
-    } else tag.style.opacity = 0;
+      setStyle(tag, 'opacity', String(tagA));
+      const txt = `${clamp(lineZ - FZ0, 0, FLAT_L).toFixed(1)} m`;
+      if (tag.textContent !== txt) tag.textContent = txt;
+      setStyle(tag, 'transform', `translate(${Math.min(x, vw - 34).toFixed(1)}px, ${y.toFixed(1)}px) translate(-100%, -120%)`);
+    } else setStyle(tag, 'opacity', '0');
   }
 
-  // ───────────── scheduling + adaptive quality ─────────────
-  // Renders only on scroll/resize (a still page costs nothing). If back-to-back scroll
-  // frames keep missing ~45 fps, step resolution + march steps down once.
-  let queued = 0, lastT = 0, slow = 0, frames = 0, fpsAcc = 0;
+  // ───────────── scheduling + quality ─────────────
+  // Frames run while scrolling and while the camera is still gliding to the scroll
+  // position; a still page (or a hero scrolled out of view) costs nothing.
+  // Quality: if scroll frames keep missing ~40 fps, the step down to the lower tier is
+  // queued and applied only once the page has been still for 300 ms — never mid-motion
+  // (a mid-scroll canvas resize is a multi-frame stall and visibly softens the image).
+  // The decision is remembered for the session, so a reload starts on the right tier.
+  const TIER_KEY = 'flat-tier';
+  let tier = QS.has('dpr') ? 0 : clamp(+(sessionStorage.getItem(TIER_KEY) || 0), 0, TIERS.length - 1);
+  let queued = 0, lastT = 0, slow = 0, downgrade = false, idleTimer = 0;
   const hud = QS.has('hud') ? document.createElement('div') : null;
   if (hud) { hud.className = 'flat-hud'; document.body.appendChild(hud); }
+  // HUD diagnostics: frame times, scroll jumps between frames, viewport changes
+  const diag = { gaps: [], jumps: 0, maxJump: 0, resizes: 0, lastY: scrollY };
+
   function frame(t) {
     queued = 0;
     if (dead) return;
     const gap = lastT ? t - lastT : 0;
     lastT = t;
-    render();
-    if (gap > 0 && gap < 120) {
-      frames++; fpsAcc += gap;
-      slow = gap > 24 ? slow + 1 : Math.max(0, slow - 1);
-      if (slow > 24 && qualityScale > 0.7) { qualityScale = 0.7; maxSteps = 48; slow = 0; resize(); }
+    const dt = Math.min(1 / 30, gap > 0 ? gap / 1000 : 1 / 60);
+
+    const target = targetP();
+    const inView = scrollY < heroBottom && scrollY + vh > heroTop;
+    if (shownP < 0 || FORCE_P !== null || !inView) shownP = target;   // jump-cut only when not visible
+    else shownP += (target - shownP) * (1 - Math.exp(-FOLLOW * dt));
+    if (Math.abs(target - shownP) < 2e-5) shownP = target;
+    const moving = shownP !== target;
+
+    if (inView && (moving || dirty || shownP !== lastShown)) {
+      render(shownP);
+      lastShown = shownP; dirty = false;
+      if (gap > 0 && gap < 120) {
+        slow = gap > 25 ? slow + 1 : Math.max(0, slow - 1);
+        if (slow > 20 && tier < TIERS.length - 1) downgrade = true;
+      }
     }
-    if (hud && frames) {
-      hud.textContent = `fps ${(1000 / (fpsAcc / frames)).toFixed(0)}\ndpr ${dpr.toFixed(2)}  ${canvas.width}×${canvas.height}\nsteps ${maxSteps}\np ${lastP.toFixed(3)}`;
-      if (frames > 30) { frames = 0; fpsAcc = 0; }
-    }
+    if (hud) drawHud(gap);
+    if (moving) request();
   }
+  let lastShown = -1;
+
+  function drawHud(gap) {
+    const dy = scrollY - diag.lastY; diag.lastY = scrollY;
+    if (Math.abs(dy) > 160) { diag.jumps++; diag.maxJump = Math.max(diag.maxJump, Math.round(Math.abs(dy))); }
+    if (gap > 0 && gap < 500) { diag.gaps.push(gap); if (diag.gaps.length > 60) diag.gaps.shift(); }
+    const g = [...diag.gaps].sort((a, b) => a - b);
+    const avg = g.length ? g.reduce((s, x) => s + x, 0) / g.length : 0;
+    const p95 = g.length ? g[Math.floor(g.length * 0.95)] : 0;
+    hud.textContent = `fps ${avg ? (1000 / avg).toFixed(0) : '–'}  p95 ${p95.toFixed(0)}ms\n`
+      + `tier ${tier} dpr ${dpr.toFixed(2)}  ${canvas.width}×${canvas.height}\n`
+      + `p ${shownP.toFixed(3)} → ${targetP().toFixed(3)}\n`
+      + `jumps>160px ${diag.jumps} (max ${diag.maxJump})\n`
+      + `resizes ${diag.resizes}  ih ${innerHeight}  vv ${Math.round(visualViewport?.height || 0)}`;
+  }
+
   const request = () => { if (!queued) queued = requestAnimationFrame(frame); };
-  const onResize = () => { resize(); request(); };
+  const onScroll = () => {
+    request();
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(onIdle, 300);
+  };
+  function onIdle() {
+    if (!downgrade || dead) return;
+    downgrade = false; slow = 0;
+    tier = Math.min(tier + 1, TIERS.length - 1);
+    try { sessionStorage.setItem(TIER_KEY, String(tier)); } catch { /* private mode */ }
+    resize(); request();
+  }
+  // Coalesce resize sources (window resize + ResizeObserver on the sticky box / intro copy)
+  // into one measurement per frame.
+  let resizeQueued = false;
+  const onResize = () => {
+    diag.resizes++;
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => { resizeQueued = false; if (!dead) { resize(); request(); } });
+  };
   const onLost = (e) => { e.preventDefault(); fail(new Error('webgl context lost')); };
   // the copy height (and with it the framing) changes once the web font arrives
   const ro = new ResizeObserver(onResize);
   ro.observe(el.sticky);
   ro.observe(el.intro);
-  addEventListener('scroll', request, { passive: true });
+  addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onResize);
   canvas.addEventListener('webglcontextlost', onLost);
   resize();
@@ -460,8 +657,9 @@ export function setupFlat(el, { onFail } = {}) {
   return () => {
     dead = true;
     if (queued) cancelAnimationFrame(queued);
+    clearTimeout(idleTimer);
     ro.disconnect();
-    removeEventListener('scroll', request);
+    removeEventListener('scroll', onScroll);
     removeEventListener('resize', onResize);
     canvas.removeEventListener('webglcontextlost', onLost);
     if (gl && !gl.isContextLost()) {
