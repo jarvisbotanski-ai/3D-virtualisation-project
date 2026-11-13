@@ -74,9 +74,17 @@ document.getElementById('workSheets').addEventListener('click', (e) => {
 const chain = document.querySelector('.chain');
 if (chain) {
   const TICK_Y = 9;   // .chain li::before top on phones
+  let wasVertical = null;
   const syncChain = () => {
     const [, b, c] = chain.children;
     const vertical = getComputedStyle(chain).gridTemplateColumns.split(' ').length === 1;
+    // Crossing the phone/desktop breakpoint swaps the fill's keyframes (chain-fill-y ↔
+    // chain-fill), which restarts ONLY the line; the step texts kept their old clock and
+    // ran seconds out of step with it. Restart every chain animation together.
+    if (wasVertical !== null && vertical !== wasVertical) {
+      requestAnimationFrame(() => chain.getAnimations({ subtree: true }).forEach((a) => { a.currentTime = 0; }));
+    }
+    wasVertical = vertical;
     const len = vertical ? chain.clientHeight : chain.clientWidth;
     if (!len || !b || !c) return;
     const at = (li) => (vertical ? li.offsetTop + TICK_Y : li.offsetLeft) / len;
