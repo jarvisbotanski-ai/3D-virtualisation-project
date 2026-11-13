@@ -4,14 +4,36 @@ import { initHero } from './hero/hero.js';
 import { initSmoothScroll } from './smooth-scroll.js';
 import { PROJECTS } from './projects.js';
 
-// ---------- work grid (from src/projects.js) ----------
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-document.getElementById('workGrid').innerHTML = PROJECTS.map((p) => {
-  const thumb = p.thumb
-    ? `<div class="thumb${p.clay ? ' clay' : ''}" style="background-image:url(${esc(p.thumb)});${esc(p.thumbStyle || '')}"></div>`
-    : `<div class="thumb"><div class="ph">${esc(p.placeholder || '')}</div></div>`;
-  const right = p.area ? `<span class="num">${p.area} m² · ${p.year}</span>` : `<span class="arrow">→</span>`;
-  return `<a class="cell" href="${esc(p.href || '#')}">${thumb}<div class="row"><b${p.draft ? ' class="draft"' : ''}>${esc(p.title)}</b>${right}</div></a>`;
+// ---------- work: one drawing sheet per project (from src/projects.js) ----------
+// A sheet = the view, the plan with its two overall dimensions, and a title block.
+// Sheet numbers (A-01, A-02…) come from the order in projects.js.
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ESC[c]);
+document.getElementById('workSheets').innerHTML = PROJECTS.map((p, i) => {
+  const no = `A-${String(i + 1).padStart(2, '0')}`;
+  const view = `<div class="sheet-view" role="img" aria-label="${esc(p.title)}, interior" style="background-image:url(${esc(p.view)});${esc(p.viewStyle || '')}"></div>`;
+  // plan: cropped to the drawing's own bounding box (planBox, % of the image) so the
+  // dimension lines sit exactly on the outer walls, not on the image edge
+  let plan = '';
+  if (p.plan) {
+    const [l, t, r, b] = p.planBox || [0, 0, 100, 100];
+    const w = r - l, h = b - t;
+    const [pw, ph] = p.planPx || [1, 1];
+    const pos = (a, s) => (s >= 100 ? 0 : (a / (100 - s)) * 100);
+    const img = `background-image:url(${esc(p.plan)});background-size:${(10000 / w).toFixed(3)}% auto;` +
+      `background-position:${pos(l, w).toFixed(3)}% ${pos(t, h).toFixed(3)}%;aspect-ratio:${((w * pw) / (h * ph)).toFixed(4)}`;
+    const dims = p.size
+      ? `<span class="dim dim-h"><i>${Math.max(...p.size).toFixed(2)}</i></span><span class="dim dim-v"><i>${Math.min(...p.size).toFixed(2)}</i></span>`
+      : '';
+    plan = `<figure class="sheet-plan"><div class="plan" role="img" aria-label="Floor plan" style="${img}">${dims}</div></figure>`;
+  }
+  const row = (k, v) => (v == null || v === '' ? '' : `<div><dt>${k}</dt><dd>${v}</dd></div>`);
+  const block = `<div class="tb">` +
+    `<div class="tb-head"><span class="tb-no num">${no}</span><h3>${esc(p.title)}</h3>${p.note ? `<p>${esc(p.note)}</p>` : ''}</div>` +
+    `<dl class="tb-grid num">${row('Location', p.place && esc(p.place))}${row('Area', p.area && `${p.area} m²`)}${row('Year', p.year)}${row('Rooms', p.rooms)}</dl>` +
+    `</div>`;
+  const tag = p.href ? 'a' : 'article';
+  return `<${tag} class="sheet${p.plan ? ' has-plan' : ''}"${p.href ? ` href="${esc(p.href)}"` : ''} data-reveal>${view}<div class="sheet-side">${plan}${block}</div></${tag}>`;
 }).join('');
 
 // ---------- scroll + hero ----------
