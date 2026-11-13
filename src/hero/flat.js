@@ -332,13 +332,14 @@ export function setupFlat(el, { onFail } = {}) {
     gl.bindTexture(gl.TEXTURE_2D, t);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, bmp);
+    const w = bmp.width, h = bmp.height;   // read BEFORE close(): a closed ImageBitmap reports 0×0
     bmp.close?.();
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return { t, w: bmp.width, h: bmp.height };
+    return { t, w, h };
   }
   // max grid from the geo texture as uploaded (read back through a framebuffer, so it
   // is built from exactly the texels the shader samples — no 2D-canvas colour handling)
@@ -351,6 +352,8 @@ export function setupFlat(el, { onFail } = {}) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.deleteFramebuffer(fb);
     const g = buildMaxGrid(px, geo.w, geo.h);
+    // fail loudly instead of silently skipping every wall (an empty grid = maxAt() → table)
+    if (!g.CW || !g.CH) throw new Error(`max grid empty (geo ${geo.w}×${geo.h})`);
     const t = gl.createTexture();
     textures.push(t);
     gl.activeTexture(gl.TEXTURE0 + unit);
