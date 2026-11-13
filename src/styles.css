@@ -400,7 +400,9 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   [data-hero-mode="mobile"] .copy{position:absolute;inset:0;width:auto;pointer-events:none}
   [data-hero-mode="mobile"] .copy .st{position:absolute;left:24px;right:24px;transition:none;will-change:opacity,translate}
   [data-hero-mode="mobile"] .copy .st[data-st="0"]{top:calc(env(safe-area-inset-top) + 40px)}
-  [data-hero-mode="mobile"] .copy .st[data-st="3"]{display:block;top:auto;bottom:calc(env(safe-area-inset-bottom) + 28px);opacity:0;visibility:hidden}
+  /* the hero's closing copy + CTA is desktop-only: on a phone the finished flat is the
+     ending, and the page continues straight into the work. flat.js frames without it. */
+  [data-hero-mode="mobile"] .copy .st[data-st="3"]{display:none!important}
   [data-hero-mode="mobile"] .copy h1{font-size:clamp(30px,8.6vw,40px);margin-bottom:14px}
   [data-hero-mode="mobile"] .copy .st[data-st="0"] p,
   [data-hero-mode="mobile"] .copy .st[data-st="0"] .static-cta{display:none}

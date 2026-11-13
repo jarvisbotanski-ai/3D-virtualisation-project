@@ -513,8 +513,9 @@ export function setupFlat(el, { onFail } = {}) {
     // max-height queries), so the plan always starts BELOW the text and keeps its size.
     // 44px = room for the top dimension line + its label above the plan.
     introTop = el.intro.offsetTop + el.intro.offsetHeight + 44;
-    // outro is bottom-anchored: everything from its top edge down is off limits
-    outroBottom = vh - el.outro.offsetTop + 20;
+    // outro is bottom-anchored: everything from its top edge down is off limits.
+    // It is display:none on phones (no closing CTA there) — then keep a plain margin.
+    outroBottom = el.outro.offsetParent ? vh - el.outro.offsetTop + 20 : 56;
     dimsKey = '';
     dirty = true;
   }
