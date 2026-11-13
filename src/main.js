@@ -42,13 +42,30 @@ document.getElementById('workSheets').innerHTML = PROJECTS.map((p, i) => {
 // ---------- work (phones): the plan folds out from under the title block ----------
 // The whole title block is the tap target; the "Plan +" pill is what tells you so.
 const PHONE = matchMedia('(max-width:860px)');
+// Slide, don't drop: the box grows to the plan's real height while the drawing
+// fades in and settles 16px down; closing is the same motion, shorter.
+const EASE = 'cubic-bezier(.22,1,.36,1)';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
 document.getElementById('workSheets').addEventListener('click', (e) => {
   const tb = e.target.closest('.tb');
   const btn = tb?.querySelector('.tb-toggle');
   if (!btn || !PHONE.matches) return;
+  const sheet = tb.closest('.sheet');
+  const box = sheet.querySelector('.sheet-plan'), inner = box.firstElementChild;
   const open = btn.getAttribute('aria-expanded') !== 'true';
   btn.setAttribute('aria-expanded', String(open));
-  tb.closest('.sheet').classList.toggle('plan-open', open);
+  const from = box.getBoundingClientRect().height;      // mid-animation taps start from here
+  box.getAnimations().forEach((a) => a.cancel());
+  inner.getAnimations().forEach((a) => a.cancel());
+  sheet.classList.toggle('plan-open', open);
+  if (REDUCED.matches) return;
+  const to = open ? box.getBoundingClientRect().height : 0;
+  const dur = open ? 640 : 420;
+  box.animate({ height: [`${from}px`, `${to}px`] }, { duration: dur, easing: EASE });
+  inner.animate(open
+    ? { opacity: [0, 1], transform: ['translateY(-16px)', 'none'] }
+    : { opacity: [1, 0], transform: ['none', 'translateY(-8px)'] },
+  { duration: open ? 560 : 260, delay: open ? 90 : 0, easing: EASE, fill: 'backwards' });
 });
 
 // ---------- process: tick positions for the looping fill (styles.css .chain) ----------

@@ -302,11 +302,8 @@ a.sheet{transition:box-shadow var(--dur-micro)}
 /* contact: statement left, form right — the one card on the page */
 .cta-body{display:grid;grid-template-columns:1.1fr minmax(360px,.75fr);gap:calc(var(--gap) * 1.4);align-items:start}
 .cta h2{font-size:clamp(36px,4.4vw,64px);line-height:1.05;letter-spacing:-.06em;margin:0 0 20px;max-width:none}
-.cta-body p{font-size:clamp(17px,1.4vw,20px);color:var(--muted);letter-spacing:-.03em;margin:0 0 30px;max-width:none}
+.cta-body p{font-size:clamp(17px,1.4vw,20px);color:var(--muted);letter-spacing:-.03em;margin:0;max-width:none}
 /* contact lines: sentence case and real tap targets (were 12px uppercase, 16px tall) */
-.cta .meta{text-transform:none;font-size:16px;color:var(--muted);gap:4px 28px}
-.cta .meta > span{display:flex}
-.cta .meta a,.cta .meta b{display:inline-flex;align-items:center;min-height:44px}
 .cta .card{background:var(--card);border-radius:var(--r-card);box-shadow:0 0 0 1px var(--border),var(--shadow-float);padding:28px}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .field label{font-size:12px;color:var(--subtle);text-transform:uppercase;letter-spacing:0}
@@ -343,6 +340,8 @@ a.sheet{transition:box-shadow var(--dur-micro)}
   border-top:1px solid #ffffff1f;padding-top:13px;color:#ffffff8c;font-size:12px;letter-spacing:0}
 .sign-meta .draft{color:#d9b56b}
 @media (hover:hover){ .sign-meta a:hover{color:var(--bg)} }
+/* email + phone live here now (moved out of the contact block): one line on desktop */
+.sign-contact{display:flex;gap:22px;flex-wrap:wrap}
 
 .draft{color:#b08a3c}
 /* reveal */
@@ -434,11 +433,12 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .sheet-side{display:flex}
   .tb{order:1;cursor:pointer;transition:background var(--dur-micro)}
   .sheet.has-plan .tb:active{background:var(--hover)}
-  .sheet-plan{order:2;display:grid;grid-template-rows:0fr;align-items:stretch;
-    transition:grid-template-rows .55s var(--ease-out-quint)}
-  .plan-in{min-height:0;overflow:hidden;padding:0 24px 0 46px;transition:padding .55s var(--ease-out-quint)}
-  .sheet.plan-open .sheet-plan{grid-template-rows:1fr;border-top:1px solid var(--border)}
-  .sheet.plan-open .plan-in{padding:44px 24px 24px 46px}
+  /* height is animated in JS (main.js, Web Animations) — the CSS only holds the end states */
+  /* flex:none — with the desktop flex:1 the flex-basis wins and `height` (what the
+     animation drives) is ignored, so the plan would just pop in */
+  .sheet-plan{order:2;display:block;flex:none;height:0;overflow:hidden}
+  .sheet.plan-open .sheet-plan{height:auto;border-top:1px solid var(--border)}
+  .plan-in{padding:44px 24px 24px 46px}
   /* "Plan +" pill: the affordance. + turns into × when open */
   .tb-head{grid-template-columns:auto 1fr auto;align-items:center}
   .tb-toggle{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 14px;margin:-4px -6px -4px 0;
@@ -471,11 +471,13 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .cta-body{grid-template-columns:1fr}
   .cta h2{font-size:38px}
   .cta h2,.cta-body p{max-width:none}
-  .cta .meta{flex-direction:column;gap:0}
   .sign{padding:40px 0 20px}
   .sign-lockup{align-items:flex-end;gap:18px}
   .sign-mark{width:64px}
   .sign-meta{flex-direction:column;gap:6px}
+  /* phones: email/phone are real tap targets, not 12px lines */
+  .sign-contact{flex-direction:column;gap:0;font-size:14px}
+  .sign-contact > *{display:flex;align-items:center;min-height:44px}
   /* no floating CTA on phones: it covered body copy and the contact heading; the
      hero ends on a CTA and the contact section is one swipe away */
   .jump{display:none}
@@ -488,7 +490,7 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   .link::after{transition:none!important}
   .sign-mark,.sign-word{transition:none;opacity:1;transform:none;clip-path:none}
   .jump{transition:none}
-  .sheet-plan,.plan-in,.tb-toggle i{transition:none}
+  .tb-toggle i{transition:none}
   .chain::after{animation:none!important;transform:none;opacity:.5}
   .chain-t{animation:none!important}
 }
