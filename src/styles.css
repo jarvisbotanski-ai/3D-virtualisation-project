@@ -408,6 +408,19 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
   [data-hero-mode="mobile"] .copy .st[data-st="3"] p{font-size:16px;margin-bottom:18px}
   [data-hero-mode="mobile"] .copy .st[data-st="3"] .kicker{margin-bottom:10px}
   [data-hero-mode="mobile"] .hint{display:block;left:0;right:0;text-align:center;bottom:calc(env(safe-area-inset-bottom) + 18px);opacity:1;transition:none}
+  /* short screens (toolbar shown, small phones, in-app browsers): a smaller copy so the
+     plan below it keeps a usable size — flat.js frames the plan under the copy, never on it */
+  @media (max-height:620px){
+    [data-hero-mode="mobile"] .copy .st[data-st="0"]{top:calc(env(safe-area-inset-top) + 28px)}
+    [data-hero-mode="mobile"] .copy h1{font-size:clamp(26px,7.4vw,32px);margin-bottom:10px}
+    [data-hero-mode="mobile"] .copy .kicker{margin-bottom:10px}
+    [data-hero-mode="mobile"] .copy .st[data-st="3"] h2{font-size:26px}
+  }
+  @media (max-height:560px){
+    [data-hero-mode="mobile"] .copy .st[data-st="0"] .meta,
+    [data-hero-mode="mobile"] .copy .st[data-st="3"] p{display:none}
+    [data-hero-mode="mobile"] .copy h1{font-size:24px}
+  }
   .flat-labels{position:absolute;inset:0;pointer-events:none;z-index:1}
   .flat-lab{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;line-height:1.25;padding:5px 8px;border-radius:8px;
     background:#ffffffe6;box-shadow:0 1px 2px #08090c14,0 6px 16px -10px #08090c40;opacity:0;will-change:transform,opacity}

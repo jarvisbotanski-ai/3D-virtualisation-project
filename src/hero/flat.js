@@ -507,8 +507,14 @@ export function setupFlat(el, { onFail } = {}) {
     // to -24px once you are past it, and `resize` also fires down there (iOS toolbar) —
     // measuring the shifted box put the plan 24px higher, over the copy, on the way back.
     // .copy is inset:0 in the sticky box, so the offsets are already sticky-relative.
-    introTop = Math.min(vh * 0.42, el.intro.offsetTop + el.intro.offsetHeight + 44);
-    outroBottom = Math.min(vh * 0.45, el.outro.offsetHeight + 40);
+    // No cap: the old min(vh * 0.42, …) let the plan climb onto the copy on any screen
+    // where the copy is taller than 42 % of the viewport (short phones, toolbar shown,
+    // in-app browsers). Short screens get a compact copy in CSS instead (styles.css,
+    // max-height queries), so the plan always starts BELOW the text and keeps its size.
+    // 44px = room for the top dimension line + its label above the plan.
+    introTop = el.intro.offsetTop + el.intro.offsetHeight + 44;
+    // outro is bottom-anchored: everything from its top edge down is off limits
+    outroBottom = vh - el.outro.offsetTop + 20;
     dimsKey = '';
     dirty = true;
   }
