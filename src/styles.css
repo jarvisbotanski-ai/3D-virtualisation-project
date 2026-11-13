@@ -318,7 +318,9 @@ html.no-js [data-reveal],html.reveal-failsafe [data-reveal],[data-reveal]:is(:fo
 
   /* ── the flat is the page (WebGL + motion): the hero becomes a scroll track; the plan,
      the sweep and the finished flat all happen in one sticky screen (src/hero/flat.js) ── */
-  [data-hero-mode="mobile"] .hero{height:640svh}
+  /* 380svh ≈ 2–3 swipes on a phone (was 640svh ≈ 5–6: the story felt like a chore,
+     and a hard fling skipped all of it). Compare lengths on a device with ?len=N. */
+  [data-hero-mode="mobile"] .hero{height:380svh}
   /* tap → jump guards (iOS): no double-tap zoom (a quick tap-tap zooms/scrolls the page),
      no grey tap flash, and no scroll anchoring off nodes inside the animated sticky hero */
   html[data-hero-mode="mobile"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}

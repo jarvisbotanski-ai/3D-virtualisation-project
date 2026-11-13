@@ -16,6 +16,7 @@
 //
 // Debug: ?hud=1 (fps, frame p95, tier, scroll jumps, viewport resizes)   ?dpr=N (force
 // pixel ratio)   ?p=0..1 (freeze progress)   ?follow=N (camera follow rate, 1/s)
+// ?len=N (hero length in svh; default 380 from styles.css)
 // sessionStorage 'flat-tier' remembers a quality step-down; clear it to retest tier 0.
 
 // proto/maps/info.json
@@ -279,6 +280,10 @@ function buildMaxGrid(px, W, H) {
 export function setupFlat(el, { onFail } = {}) {
   const FORCE_P = QS.has('p') ? clamp(+QS.get('p'), 0, 1) : null;
   const DPR_CAP = QS.has('dpr') ? +QS.get('dpr') : 0;   // ?dpr=N forces the pixel ratio (no tiers)
+
+  // ?len=N — hero length in svh, to compare scroll lengths on a real phone
+  const LEN = QS.has('len') ? clamp(+QS.get('len') || 0, 150, 1000) : 0;
+  if (LEN) el.hero.style.height = `${LEN}svh`;
 
   const canvas = document.createElement('canvas');
   canvas.className = 'flat-canvas';
@@ -669,6 +674,7 @@ export function setupFlat(el, { onFail } = {}) {
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     }
     canvas.remove(); labelsEl.remove(); hud?.remove();
+    if (LEN) el.hero.style.height = '';
     el.host.classList.remove('ready');
     el.dims.innerHTML = ''; el.dims.style.opacity = '';
     for (const k of [el.intro, el.outro, el.hint]) {
